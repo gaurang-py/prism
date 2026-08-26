@@ -1,7 +1,7 @@
 import { GenerateWorkspace } from "@/components/studio/generate-workspace";
 
-export const metadata = { title: "Prism — Image" };
+export const metadata = { title: "Prism — Generate" };
 
-export default function ImagePage() {
+export default function GeneratePage() {
   return <GenerateWorkspace />;
 }

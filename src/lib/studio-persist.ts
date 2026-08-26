@@ -1,4 +1,3 @@
-import { SEED_JOBS } from "./seed-jobs";
 import { STARTING_CREDITS, STORAGE_KEY, type Job } from "./types";
 
 export interface PersistedStudio {
@@ -8,7 +7,7 @@ export interface PersistedStudio {
 
 const FALLBACK: PersistedStudio = {
   credits: STARTING_CREDITS,
-  jobs: SEED_JOBS,
+  jobs: [],
 };
 
 let snapshot: PersistedStudio = FALLBACK;
@@ -67,7 +66,9 @@ export function writeStudio(next: PersistedStudio) {
   emit();
 }
 
-export function patchStudio(patch: Partial<PersistedStudio> | ((current: PersistedStudio) => PersistedStudio)) {
+export function patchStudio(
+  patch: Partial<PersistedStudio> | ((current: PersistedStudio) => PersistedStudio),
+) {
   const current = getStudioSnapshot();
   const next = typeof patch === "function" ? patch(current) : { ...current, ...patch };
   writeStudio(next);

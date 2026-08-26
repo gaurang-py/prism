@@ -1,6 +1,6 @@
 # Prism
 
-A Higgsfield-like **AI image and video generation studio** — UI prototype only. Every run is mocked: short delays, bundled cinematic stills and looping clips, and credits that live in `localStorage`. No provider APIs, no auth, no payments.
+A two-screen **AI image and video studio** — UI prototype only. Home is a Krea-style hub; Generate uses Higgsfield-like chrome with a bottom dock. Every run is mocked (short delays, bundled stills/clips, credits in `localStorage`). No provider APIs, no auth, no payments.
 
 ## Run locally
 
@@ -16,15 +16,16 @@ npm run build
 npm start
 ```
 
-## What you can do
+## Screens
 
-- Switch **Image / Video**, pick a model (Flux 2, Seedream, SDXL, Wan, Seedance, Kling, LTX), set aspect ratio, and generate.
-- Watch jobs move **queued → generating → done** on the board.
-- Open a result lightbox. On stills, **Use as video input** attaches the frame to the video composer.
-- Image (`/image`) and Video (`/video`) deep-link into Generate with that mode selected. Library (`/library`) lists everything.
+- **Home** (`/`) — left rail (Home, Image, Video, History), featured card, and an Explore-style model grid (Flux 2, Seedream, SDXL, Wan, Seedance, Kling, LTX). Cards and rail items open Generate in the right mode.
+- **Generate** (`/generate`, `/image`, `/video`) — Image | Video tabs, empty board until you run, bottom dock with prompt, attach, model, aspect, resolution, variation count, and a lime **Generate** button that shows credit cost.
+- **History** (`/history`) — every mocked job.
 
-Jobs and remaining credits persist in the browser. The user menu **Reset demo** restores the seed gallery and 1,240 credits.
+Open a finished still and **Use as video input** to attach it as a first frame on the video dock.
+
+Jobs and credits persist in the browser. The user menu **Reset demo** restores 1,240 credits and clears the board.
 
 ## Stack
 
-Next.js App Router, TypeScript, Tailwind CSS v4, shadcn/ui. The model catalog lives in `src/lib/models.ts` so a real provider router can replace the mock loop later.
+Next.js App Router, TypeScript, Tailwind CSS v4, shadcn/ui. Model catalog: `src/lib/models.ts`.

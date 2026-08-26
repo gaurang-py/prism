@@ -41,7 +41,7 @@ export function JobCard({
       className="group mb-3 w-full break-inside-avoid text-left"
     >
       <article
-        className="overflow-hidden rounded-xl border border-border/70 bg-card/70 shadow-[0_8px_30px_-18px_black] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:border-gold/30"
+        className="overflow-hidden rounded-xl border border-white/8 bg-card transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:border-white/16"
         style={{ aspectRatio: aspectCss(job.aspectRatio) }}
       >
         <div className="relative h-full w-full overflow-hidden">
@@ -70,7 +70,7 @@ export function JobCard({
           {pending && (
             <div className="absolute inset-0 flex flex-col justify-end bg-black/45 film-shimmer">
               <div className="space-y-2 p-3">
-                <div className="flex items-center justify-between text-[11px] tracking-wide text-gold uppercase">
+                <div className="flex items-center justify-between text-[11px] tracking-wide text-lime uppercase">
                   <span>{job.status === "queued" ? "In queue" : "Generating"}</span>
                   <span className="tabular-nums">{Math.round(job.progress)}%</span>
                 </div>
@@ -95,7 +95,7 @@ export function JobCard({
             <p className="line-clamp-2 text-[12px] leading-snug text-foreground/95">
               {job.prompt}
             </p>
-            <p className="mt-1 text-[10px] tracking-wide text-gold/90 uppercase">
+            <p className="mt-1 text-[10px] tracking-wide text-lime/90 uppercase">
               {model?.name ?? job.modelId} · {formatRelative(job.createdAt)}
             </p>
           </div>

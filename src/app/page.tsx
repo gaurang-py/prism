@@ -1,5 +1,7 @@
-import { GenerateWorkspace } from "@/components/studio/generate-workspace";
+import { HomeHub } from "@/components/studio/home-hub";
+
+export const metadata = { title: "Prism" };
 
 export default function HomePage() {
-  return <GenerateWorkspace />;
+  return <HomeHub />;
 }

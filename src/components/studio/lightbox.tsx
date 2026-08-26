@@ -63,7 +63,7 @@ export function ResultLightbox() {
                 />
               )}
               {job.modality === "video" && !job.videoUrl && job.status === "done" && (
-                <span className="absolute right-4 bottom-4 rounded-full bg-black/60 px-3 py-1 text-xs tracking-wide text-gold uppercase">
+                <span className="absolute right-4 bottom-4 rounded-full bg-black/60 px-3 py-1 text-xs tracking-wide text-lime uppercase">
                   {job.duration ?? 5}s push-in
                 </span>
               )}
@@ -72,7 +72,7 @@ export function ResultLightbox() {
             <aside className="flex w-[320px] shrink-0 flex-col border-l border-border bg-card/40">
               <div className="flex items-start justify-between gap-3 p-4">
                 <div>
-                  <p className="text-[10px] tracking-[0.18em] text-gold uppercase">
+                  <p className="text-[10px] tracking-[0.18em] text-lime uppercase">
                     {job.modality} · {job.status}
                   </p>
                   <p className="mt-1 font-medium">{model?.name ?? job.modelId}</p>
@@ -147,10 +147,10 @@ export function ResultLightbox() {
                 <div className="border-t border-border p-4">
                   <Button
                     type="button"
-                    className="h-10 w-full rounded-full bg-gold text-gold-foreground hover:bg-gold/90"
+                    className="h-10 w-full rounded-lg bg-lime text-lime-foreground hover:bg-lime/90"
                     onClick={() => {
                       attachAsVideoInput(job);
-                      router.push("/video");
+                      router.push("/generate?mode=video");
                     }}
                   >
                     <Clapperboard className="size-4" />

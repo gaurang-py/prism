@@ -1,7 +1,5 @@
-import { LibraryView } from "@/components/studio/library-view";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Prism — Library" };
-
-export default function LibraryPage() {
-  return <LibraryView />;
+export default function LibraryRedirect() {
+  redirect("/history");
 }
