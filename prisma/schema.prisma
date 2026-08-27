@@ -27,6 +27,8 @@ model User {
   bio                     String    @default("")
   avatarKey               String?
   credits                 Int       @default(0)
+  nsfwEnabled             Boolean   @default(false)
+  nsfwAgeConfirmed        Boolean   @default(false)
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?
   createdAt               DateTime  @default(now())

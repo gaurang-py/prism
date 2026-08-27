@@ -8,7 +8,7 @@ const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
 
 export type SessionUser = Pick<
   User,
-  "id" | "email" | "name" | "bio" | "avatarKey" | "credits"
+  "id" | "email" | "name" | "bio" | "avatarKey" | "credits" | "nsfwEnabled" | "nsfwAgeConfirmed"
 >;
 
 export async function createSession(userId: string): Promise<string> {
@@ -65,6 +65,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
           bio: true,
           avatarKey: true,
           credits: true,
+          nsfwEnabled: true,
+          nsfwAgeConfirmed: true,
         },
       },
     },

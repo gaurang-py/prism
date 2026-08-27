@@ -12,11 +12,19 @@ type FalResult = {
   requestId: string;
 };
 
-function extractMediaUrl(data: unknown): { url: string; contentType?: string } {
+function extractMediaUrl(data: unknown, safetyOff: boolean): { url: string; contentType?: string } {
   if (!data || typeof data !== "object") {
     throw new Error("Fal returned an empty result.");
   }
   const payload = data as Record<string, unknown>;
+  const flagged =
+    Array.isArray(payload.has_nsfw_concepts) && payload.has_nsfw_concepts.some(Boolean);
+
+  if (flagged && !safetyOff) {
+    throw new Error(
+      "Fal blocked this output as unsafe. Opt into NSFW models for adult work — SFW endpoints will not run that prompt.",
+    );
+  }
 
   const fromFile = (value: unknown): { url: string; contentType?: string } | null => {
     if (!value || typeof value !== "object") return null;
@@ -46,11 +54,12 @@ function falMessage(error: unknown): string {
   if (error && typeof error === "object") {
     const body = error as {
       message?: string;
-      body?: { detail?: unknown; message?: string };
+      body?: { detail?: unknown; message?: string; type?: string };
       status?: number;
     };
     const detail = body.body?.detail;
-    if (typeof detail === "string") return detail;
+    let detailText = "";
+    if (typeof detail === "string") detailText = detail;
     if (Array.isArray(detail)) {
       const parts = detail
         .map((item) => {
@@ -61,10 +70,22 @@ function falMessage(error: unknown): string {
           return JSON.stringify(item);
         })
         .filter(Boolean);
-      if (parts.length) return parts.join("; ");
+      if (parts.length) detailText = parts.join("; ");
     }
-    if (typeof body.body?.message === "string") return body.body.message;
-    if (typeof body.message === "string") return body.message;
+    const raw =
+      detailText ||
+      (typeof body.body?.message === "string" ? body.body.message : "") ||
+      (typeof body.message === "string" ? body.message : "");
+    const lower = raw.toLowerCase();
+    const policy =
+      lower.includes("content_policy") ||
+      lower.includes("content policy") ||
+      lower.includes("safety checker") ||
+      lower.includes("nsfw");
+    if (raw && policy) {
+      return `Fal rejected this run (${raw}). Adult work needs an NSFW model with NSFW turned on.`;
+    }
+    if (raw) return raw;
   }
   if (error instanceof Error) return error.message;
   return "Fal.ai request failed.";
@@ -78,6 +99,7 @@ export async function runFalGeneration(
   fal.config({ credentials: process.env.FAL_KEY!.trim() });
 
   const call = resolveFalCall(request);
+  const safetyOff = call.input.enable_safety_checker === false;
 
   try {
     const result = (await fal.subscribe(call.endpoint as never, {
@@ -94,7 +116,7 @@ export async function runFalGeneration(
       },
     } as never)) as FalResult;
 
-    const media = extractMediaUrl(result.data);
+    const media = extractMediaUrl(result.data, safetyOff);
     return {
       ...media,
       requestId: result.requestId,

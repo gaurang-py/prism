@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { GenerateDock } from "./generate-dock";
 import { JobGallery } from "./job-gallery";
 import { ResultLightbox } from "./lightbox";
+import { NsfwToggle } from "./nsfw-toggle";
 import { useStudio } from "@/context/studio-context";
 import type { Modality } from "@/lib/models";
 import { generatePath } from "@/lib/types";
@@ -38,13 +39,16 @@ export function GenerateWorkspace() {
             </button>
           ))}
         </nav>
-        <div
-          className={cn(
-            "text-sm tabular-nums text-lime",
-            creditError && "credit-error text-destructive",
-          )}
-        >
-          {formatCredits(credits)} credits
+        <div className="flex items-center gap-3">
+          <NsfwToggle />
+          <div
+            className={cn(
+              "text-sm tabular-nums text-lime",
+              creditError && "credit-error text-destructive",
+            )}
+          >
+            {formatCredits(credits)} credits
+          </div>
         </div>
       </header>
 

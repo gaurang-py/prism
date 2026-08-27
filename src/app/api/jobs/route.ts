@@ -78,6 +78,12 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  if (model.nsfw && !auth.user.nsfwEnabled) {
+    return NextResponse.json(
+      { error: "Turn on NSFW in the studio to use adult models. SFW endpoints will not run that prompt." },
+      { status: 403 },
+    );
+  }
 
   const aspectRaw =
     typeof body.aspect === "string"

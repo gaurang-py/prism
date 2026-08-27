@@ -17,6 +17,8 @@ export async function serializeUser(user: SessionUser) {
     bio: user.bio,
     avatarUrl,
     credits: user.credits,
+    nsfwEnabled: user.nsfwEnabled,
+    nsfwAgeConfirmed: user.nsfwAgeConfirmed,
   };
 }
 

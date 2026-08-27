@@ -24,15 +24,28 @@ export async function PATCH(request: Request) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
 
-  let body: { name?: unknown; bio?: unknown };
+  let body: { name?: unknown; bio?: unknown; nsfwEnabled?: unknown; nsfwAgeConfirmed?: unknown };
   try {
-    body = (await request.json()) as { name?: unknown; bio?: unknown };
+    body = (await request.json()) as {
+      name?: unknown;
+      bio?: unknown;
+      nsfwEnabled?: unknown;
+      nsfwAgeConfirmed?: unknown;
+    };
   } catch {
     return NextResponse.json({ error: "Expected JSON body." }, { status: 400 });
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : auth.user.name;
   const bio = typeof body.bio === "string" ? body.bio.trim() : auth.user.bio;
+  const togglingNsfw = typeof body.nsfwEnabled === "boolean";
+  const confirmingAge = body.nsfwAgeConfirmed === true;
+  if (togglingNsfw && body.nsfwEnabled && !auth.user.nsfwAgeConfirmed && !confirmingAge) {
+    return NextResponse.json(
+      { error: "Confirm you are 18 or older before turning NSFW on." },
+      { status: 400 },
+    );
+  }
   if (name.length < 1) {
     return NextResponse.json({ error: "Name cannot be empty." }, { status: 400 });
   }
@@ -46,7 +59,12 @@ export async function PATCH(request: Request) {
   try {
     const user = await prisma.user.update({
       where: { id: auth.user.id },
-      data: { name, bio },
+      data: {
+        name,
+        bio,
+        ...(togglingNsfw ? { nsfwEnabled: body.nsfwEnabled as boolean } : {}),
+        ...(confirmingAge ? { nsfwAgeConfirmed: true } : {}),
+      },
     });
     return NextResponse.json({ user: await serializeUser(user) });
   } catch (error) {

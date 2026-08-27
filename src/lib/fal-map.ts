@@ -94,6 +94,41 @@ function buildImageCall(req: GenerateRequest): FalCall {
           prompt: req.prompt,
           image_size: imageSize,
           num_images: 1,
+          enable_safety_checker: true,
+          ...(frame ? { image_url: frame, strength: 0.55 } : {}),
+        },
+      };
+    case "flux-uncensored":
+      return {
+        endpoint: "fal-ai/flux/dev",
+        input: {
+          prompt: req.prompt,
+          image_size: imageSize,
+          num_images: 1,
+          output_format: "png",
+          enable_safety_checker: false,
+          ...(frame ? { image_url: frame } : {}),
+        },
+      };
+    case "pony-v7":
+      return {
+        endpoint: "fal-ai/pony-v7",
+        input: {
+          prompt: req.prompt,
+          image_size: imageSize,
+          num_images: 1,
+          output_format: "png",
+          enable_safety_checker: false,
+        },
+      };
+    case "sdxl-uncensored":
+      return {
+        endpoint: frame ? "fal-ai/fast-sdxl/image-to-image" : "fal-ai/fast-sdxl",
+        input: {
+          prompt: req.prompt,
+          image_size: imageSize,
+          num_images: 1,
+          enable_safety_checker: false,
           ...(frame ? { image_url: frame, strength: 0.55 } : {}),
         },
       };
@@ -161,6 +196,19 @@ function buildVideoCall(req: GenerateRequest): FalCall {
           aspect_ratio: frame ? "auto" : ltxAspect,
           generate_audio: true,
           ...(frame ? { image_url: frame } : {}),
+        },
+      };
+    }
+    case "hunyuan-video": {
+      const hunyuanAspect = aspect === "9:16" ? "9:16" : "16:9";
+      return {
+        endpoint: "fal-ai/hunyuan-video",
+        input: {
+          prompt: req.prompt,
+          aspect_ratio: hunyuanAspect,
+          resolution: "720p",
+          num_frames: duration >= 10 ? 129 : 85,
+          enable_safety_checker: false,
         },
       };
     }

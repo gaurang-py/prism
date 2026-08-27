@@ -8,7 +8,7 @@ AI image and video studio. Logged-out visitors see a cinematic marketing landing
 | --- | --- | --- |
 | `/` | Logged out | Marketing landing: full-bleed hero, the same generate dock as the studio, Explore-style Image/Video model cards, Sign up, quiet credit-pack teaser. Marketing nav only (Product, Pricing, Login, Sign up). |
 | `/` | Logged in | Redirects to `/home`. |
-| `/home` | Signed in | In-app Home hub: left rail (Home, Image, Video, History), featured card, Explore model grid. |
+| `/home` | Signed in | In-app Home hub: looping cheapest-video hero (LTX 2), hover-to-play video cards, Image / Video / NSFW filters, NSFW opt-in toggle. |
 | `/generate`, `/image`, `/video` | Signed in | Studio: Image \| Video tabs, empty board until jobs exist, bottom dock. No marketing hero. |
 | `/history` | Signed in | That user's jobs that have not expired. |
 | `/profile` | Signed in | Name, bio, avatar. |
@@ -115,6 +115,23 @@ Uploads (first frames) live under `generations/uploads/` and expire with generat
 
 Insufficient credits return a readable error and **do not** create a job.
 
+## NSFW (opt-in, adult only)
+
+The catalog is **SFW by default**. NSFW models stay hidden until the signed-in user turns **NSFW on** (Home hub and Generate header). The first time, they must check an 18+ confirm; that flag is stored on `User.nsfwAgeConfirmed`. `POST /api/jobs` rejects NSFW model ids unless `User.nsfwEnabled` is true. Adult NSFW is in-scope. Child sexual content, anyone 17 or under, and “jailbreak” tooling are not.
+
+SFW endpoints are not used as an NSFW bypass. Fal safety rejections (`has_nsfw_concepts` on a checker-on run, or a content-policy error) mark the job **error** with a readable message.
+
+NSFW catalog (real Fal routes only):
+
+| Catalog | Credits | Fal endpoint |
+| --- | --- | --- |
+| Flux Uncensored | 8 | `fal-ai/flux/dev` with `enable_safety_checker: false` |
+| Pony V7 | 6 | `fal-ai/pony-v7` with `enable_safety_checker: false` |
+| SDXL Uncensored | 4 | `fal-ai/fast-sdxl` with `enable_safety_checker: false` |
+| Hunyuan Video | 28 | `fal-ai/hunyuan-video` with `enable_safety_checker: false` |
+
+Cheapest **SFW video** in the catalog is **LTX 2** (16 credits). That model is the logged-in Home featured CTA.
+
 ## Fal model map
 
 Catalog ids in `src/lib/models.ts` → endpoints in `src/lib/fal-map.ts`:
@@ -129,6 +146,10 @@ Catalog ids in `src/lib/models.ts` → endpoints in `src/lib/fal-map.ts`:
 | Seedance Fast | `bytedance/seedance-2.0/fast/text-to-video` / `.../fast/image-to-video` |
 | Kling 2.6 | `fal-ai/kling-video/v2.6/pro/text-to-video` / `.../image-to-video` |
 | LTX 2 | `fal-ai/ltx-2.3/text-to-video/fast` / `.../image-to-video/fast` |
+| Flux Uncensored (NSFW) | `fal-ai/flux/dev` (`enable_safety_checker: false`) |
+| Pony V7 (NSFW) | `fal-ai/pony-v7` (`enable_safety_checker: false`) |
+| SDXL Uncensored (NSFW) | `fal-ai/fast-sdxl` (`enable_safety_checker: false`) |
+| Hunyuan Video (NSFW) | `fal-ai/hunyuan-video` (`enable_safety_checker: false`) |
 
 ## Stack
 

@@ -103,7 +103,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setAppliedRoute(routeKey);
     const routeMode = modeFromRoute(pathname, searchParams.get("mode"));
     const routeModel = getModel(searchParams.get("model") ?? "");
-    if (routeModel) {
+    if (routeModel && (!routeModel.nsfw || user?.nsfwEnabled)) {
       setModalityState(routeModel.modality);
       setSelectedModelId(routeModel.id);
       setResolution((current) => {
@@ -118,7 +118,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setSelectedModelId((current) => {
         const model = getModel(current);
         if (model?.modality === routeMode) return current;
-        return defaultModelId(routeMode);
+        return defaultModelId(routeMode, Boolean(user?.nsfwEnabled));
       });
       setResolution((current) => {
         const allowed = routeMode === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
@@ -162,6 +162,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [user?.credits]);
 
   useEffect(() => {
+    const model = getModel(selectedModelId);
+    if (model?.nsfw && !user?.nsfwEnabled) {
+      setSelectedModelId(defaultModelId(model.modality, false));
+    }
+  }, [selectedModelId, user?.nsfwEnabled]);
+
+  useEffect(() => {
     void refresh();
   }, [refresh]);
 
@@ -179,7 +186,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedModelId((current) => {
       const model = getModel(current);
       if (model?.modality === next) return current;
-      return defaultModelId(next);
+      return defaultModelId(next, Boolean(user?.nsfwEnabled));
     });
     setResolution((current) => {
       const allowed = next === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
@@ -190,7 +197,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (next === "image") {
       setFirstFrame(null);
     }
-  }, []);
+  }, [user?.nsfwEnabled]);
 
   const selectModel = useCallback((id: string) => {
     const model = getModel(id);
@@ -222,7 +229,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedModelId((current) => {
       const model = getModel(current);
       if (model?.modality === "video") return current;
-      return defaultModelId("video");
+      return defaultModelId("video", Boolean(user?.nsfwEnabled));
     });
     setResolution((current) =>
       (VIDEO_RESOLUTIONS as readonly string[]).includes(current) ? current : "1080p",
@@ -236,7 +243,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setAspectRatio(job.aspectRatio);
     setSelectedJobId(null);
     toast.success("Attached as first frame");
-  }, []);
+  }, [user?.nsfwEnabled]);
 
   const attachFile = useCallback((file: File) => {
     const preview = URL.createObjectURL(file);
@@ -277,7 +284,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      const model = getModel(selectedModelId) ?? modelsFor(modality)[0];
+      const model = getModel(selectedModelId) ?? modelsFor(modality, Boolean(user?.nsfwEnabled))[0];
+      if (model.nsfw && !user?.nsfwEnabled) {
+        toast.error("Turn on NSFW to use this model");
+        return false;
+      }
       if (!user && !authLoading) {
         const draft = {
           prompt,

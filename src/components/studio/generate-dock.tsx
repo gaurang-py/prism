@@ -63,7 +63,8 @@ export function GenerateDock() {
   const restored = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const model = getModel(selectedModelId);
-  const models = modelsFor(modality);
+  const nsfwEnabled = Boolean(user?.nsfwEnabled);
+  const models = modelsFor(modality, nsfwEnabled);
   const resolutions = modality === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
 
   useEffect(() => {
@@ -176,7 +177,10 @@ export function GenerateDock() {
                 className="flex items-start justify-between gap-3"
               >
                 <span>
-                  <span className="block">{item.name}</span>
+                  <span className="block">
+                    {item.name}
+                    {item.nsfw ? " · Adult" : ""}
+                  </span>
                   <span className="block text-xs text-muted-foreground">
                     {item.tagline}
                   </span>
