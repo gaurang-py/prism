@@ -12,9 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/context/auth-context";
 import { useStudio } from "@/context/studio-context";
 import { formatCredits } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PrismMark } from "./prism-mark";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, id: "home" },
@@ -23,11 +25,23 @@ const NAV = [
   { href: "/history", label: "History", icon: History, id: "history" },
 ] as const;
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { credits, creditError, resetDemo } = useStudio();
+  const { credits, creditError } = useStudio();
+  const { user, logout } = useAuth();
   const mode = searchParams.get("mode");
+  const balance = user?.credits ?? credits;
 
   function isActive(id: string) {
     if (id === "home") return pathname === "/";
@@ -76,59 +90,76 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-3 p-3">
-        <div
+        <Link
+          href={user ? "/credits" : "/login?next=/credits"}
           className={cn(
-            "flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm",
+            "flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm hover:bg-white/8",
             creditError && "credit-error text-destructive",
           )}
         >
           <span className="text-muted-foreground">Credits</span>
           <span className="font-medium tabular-nums text-lime">
-            {formatCredits(credits)}
+            {formatCredits(balance)}
           </span>
-        </div>
+        </Link>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-auto w-full justify-start gap-2 rounded-xl bg-white/5 px-2 py-2 hover:bg-white/8"
-            >
-              <span className="flex size-8 items-center justify-center rounded-full bg-lime/20 text-xs font-semibold text-lime">
-                AC
-              </span>
-              <span className="min-w-0 text-left">
-                <span className="block truncate text-sm font-medium">Avery Chen</span>
-                <span className="block text-[11px] text-muted-foreground">Demo seat</span>
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuLabel className="font-normal">
-              <div className="text-sm">Avery Chen</div>
-              <div className="text-xs text-muted-foreground">avery@prism.studio</div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>Auth is mocked</DropdownMenuItem>
-            <DropdownMenuItem onClick={resetDemo}>Reset demo</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-auto w-full justify-start gap-2 rounded-xl bg-white/5 px-2 py-2 hover:bg-white/8"
+              >
+                <UserAvatar name={user.name} url={user.avatarUrl} />
+                <span className="min-w-0 text-left">
+                  <span className="block truncate text-sm font-medium">{user.name}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {user.email}
+                  </span>
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuLabel className="font-normal">
+                <div className="text-sm">{user.name}</div>
+                <div className="text-xs text-muted-foreground">{user.email}</div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/profile">Profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/credits">Buy credits</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void logout()}>Log out</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Link
+            href="/login?next=/generate"
+            className="flex h-10 items-center justify-center rounded-xl bg-lime text-sm font-semibold text-lime-foreground hover:bg-lime/90"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     </aside>
   );
 }
 
-export function PrismMark({ className }: { className?: string }) {
+function UserAvatar({ name, url }: { name: string; url: string }) {
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt="" className="size-8 rounded-full object-cover" />
+    );
+  }
   return (
-    <svg viewBox="0 0 24 24" className={cn("size-6", className)} fill="none" aria-hidden>
-      <path
-        d="M12 2.5 21 19.5H3L12 2.5Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path d="M12 2.5 8 19.5" stroke="currentColor" strokeWidth="1.1" opacity="0.55" />
-      <path d="M12 2.5 16 19.5" stroke="currentColor" strokeWidth="1.1" opacity="0.35" />
-    </svg>
+    <span className="flex size-8 items-center justify-center rounded-full bg-lime/20 text-xs font-semibold text-lime">
+      {initials(name)}
+    </span>
   );
 }
+
+export { PrismMark };

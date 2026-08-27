@@ -9,9 +9,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { defaultModelId, getModel, modelsFor, type Modality } from "@/lib/models";
+import { isAuthPath, loginUrl } from "@/lib/paths";
+import { useAuth } from "@/context/auth-context";
 import {
   IMAGE_RESOLUTIONS,
   MAX_VARIATIONS,
@@ -56,7 +58,6 @@ interface StudioContextValue {
   selectedJob: Job | null;
   openJob: (id: string) => void;
   closeJob: () => void;
-  resetDemo: () => void;
   activeCost: number;
   batchCost: number;
   canAfford: boolean;
@@ -78,8 +79,10 @@ function modeFromRoute(pathname: string, searchMode: string | null): Modality | 
 export function StudioProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, setUser } = useAuth();
 
-  const [credits, setCredits] = useState(STARTING_CREDITS);
+  const [credits, setCredits] = useState(user?.credits ?? STARTING_CREDITS);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -127,32 +130,48 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }
 
   const refresh = useCallback(async () => {
+    if (isAuthPath(pathname)) {
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch("/api/jobs", { cache: "no-store" });
       const payload = (await response.json()) as { jobs?: Job[]; credits?: number; error?: string };
+      if (response.status === 401) {
+        setJobs([]);
+        return;
+      }
       if (!response.ok) {
         throw new Error(payload.error || "Could not load jobs");
       }
       setJobs(payload.jobs ?? []);
-      if (typeof payload.credits === "number") setCredits(payload.credits);
+      if (typeof payload.credits === "number") {
+        setCredits(payload.credits);
+        setUser((current) => (current ? { ...current, credits: payload.credits ?? current.credits } : current));
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pathname, setUser]);
+
+  useEffect(() => {
+    if (typeof user?.credits === "number") setCredits(user.credits);
+  }, [user?.credits]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   useEffect(() => {
+    if (isAuthPath(pathname)) return;
     const pending = jobs.some((job) => job.status === "queued" || job.status === "generating");
     const interval = window.setInterval(() => {
       void refresh();
     }, pending ? 2000 : 12000);
     return () => window.clearInterval(interval);
-  }, [jobs, refresh]);
+  }, [jobs, refresh, pathname]);
 
   const setModality = useCallback((next: Modality) => {
     setModalityState(next);
@@ -263,6 +282,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setCreditError(true);
         toast.error("Not enough credits", {
           description: `This run needs ${batchCost}. You have ${credits}.`,
+          action: {
+            label: "Buy",
+            onClick: () => router.push("/credits"),
+          },
         });
         return false;
       }
@@ -294,16 +317,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           credits?: number;
           error?: string;
         };
+        if (response.status === 401) {
+          router.push(loginUrl(`${pathname}${searchParams.toString() ? `?${searchParams}` : ""}`));
+          return false;
+        }
         if (response.status === 402) {
           setCreditError(true);
-          if (typeof payload.credits === "number") setCredits(payload.credits);
-          toast.error("Not enough credits", { description: payload.error });
+          if (typeof payload.credits === "number") {
+            setCredits(payload.credits);
+            setUser((current) =>
+              current ? { ...current, credits: payload.credits ?? current.credits } : current,
+            );
+          }
+          toast.error("Not enough credits", {
+            description: payload.error,
+            action: {
+              label: "Buy",
+              onClick: () => router.push("/credits"),
+            },
+          });
           return false;
         }
         if (!response.ok) {
           throw new Error(payload.error || "Could not create job");
         }
-        if (typeof payload.credits === "number") setCredits(payload.credits);
+        if (typeof payload.credits === "number") {
+          setCredits(payload.credits);
+          setUser((current) =>
+            current ? { ...current, credits: payload.credits ?? current.credits } : current,
+          );
+        }
         if (payload.jobs?.length) {
           setJobs((current) => {
             const incoming = payload.jobs ?? [];
@@ -326,32 +369,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       firstFrame,
       modality,
       resolution,
+      pathname,
+      router,
+      searchParams,
       selectedModelId,
+      setUser,
       variationCount,
     ],
   );
 
   const openJob = useCallback((id: string) => setSelectedJobId(id), []);
   const closeJob = useCallback(() => setSelectedJobId(null), []);
-
-  const resetDemo = useCallback(() => {
-    void (async () => {
-      try {
-        const response = await fetch("/api/wallet/reset", { method: "POST" });
-        const payload = (await response.json()) as { credits?: number; error?: string };
-        if (!response.ok) throw new Error(payload.error || "Reset failed");
-        if (typeof payload.credits === "number") setCredits(payload.credits);
-        setCreditError(false);
-        setFirstFrame(null);
-        setSelectedJobId(null);
-        toast.success("Credits restored", {
-          description: "Wallet reset to 1,240. History jobs are unchanged.",
-        });
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Reset failed");
-      }
-    })();
-  }, []);
 
   const selectedJob = useMemo(
     () => jobs.find((job) => job.id === selectedJobId) ?? null,
@@ -391,7 +419,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedJob,
       openJob,
       closeJob,
-      resetDemo,
       activeCost,
       batchCost,
       canAfford,
@@ -414,7 +441,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       loading,
       modality,
       openJob,
-      resetDemo,
       resolution,
       selectModel,
       selectedJob,

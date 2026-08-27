@@ -19,8 +19,39 @@ enum Modality {
   video
 }
 
+model User {
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  passwordHash            String
+  name                    String
+  bio                     String    @default("")
+  avatarKey               String?
+  credits                 Int       @default(0)
+  passwordResetTokenHash  String?
+  passwordResetExpiresAt  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  jobs                    Job[]
+  sessions                Session[]
+  purchases               CreditPurchase[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model Job {
   id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   status        JobStatus @default(queued)
   modality      Modality
   modelId       String
@@ -40,13 +71,28 @@ model Job {
   createdAt     DateTime  @default(now())
   completedAt   DateTime?
 
+  @@index([userId, createdAt])
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([expiresAt])
   @@index([batchId])
 }
 
-model Wallet {
-  id      String @id @default("local")
-  credits Int    @default(1240)
+model StripeEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+}
+
+model CreditPurchase {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSessionId  String   @unique
+  packId           String
+  credits          Int
+  amountCents      Int
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

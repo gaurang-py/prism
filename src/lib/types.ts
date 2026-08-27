@@ -50,8 +50,7 @@ export interface Job {
   firstFrameKey?: string;
 }
 
-export const STARTING_CREDITS = 1240;
-export const STORAGE_KEY = "prism.studio.v2";
+export const STARTING_CREDITS = 0;
 
 export function aspectCss(ratio: AspectRatio): string {
   return ratio.replace(":", " / ");

@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { StudioProvider } from "@/context/studio-context";
+import { AuthProvider } from "@/context/auth-context";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -16,10 +17,12 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <TooltipProvider delayDuration={200}>
         <Suspense>
-          <StudioProvider>
-            {children}
-            <Toaster position="bottom-right" theme="dark" />
-          </StudioProvider>
+          <AuthProvider>
+            <StudioProvider>
+              {children}
+              <Toaster position="bottom-right" theme="dark" />
+            </StudioProvider>
+          </AuthProvider>
         </Suspense>
       </TooltipProvider>
     </ThemeProvider>

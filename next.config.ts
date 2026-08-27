@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
     "@fal-ai/client",
     "@aws-sdk/client-s3",
     "@aws-sdk/s3-request-presigner",
+    "stripe",
+    "bcryptjs",
+    "nodemailer",
   ],
 };
 

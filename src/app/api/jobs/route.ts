@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { JOB_TTL_MS, LOCAL_WALLET_ID } from "@/lib/constants";
+import { JOB_TTL_MS } from "@/lib/constants";
 import { enqueueGenerateJob } from "@/lib/queue";
 import { notExpired, serializeJobs } from "@/lib/serialize-job";
 import { publicError } from "@/lib/http-error";
 import { getModel, type Modality } from "@/lib/models";
+import { requireUser } from "@/lib/require-user";
 import {
   ASPECT_RATIOS,
   IMAGE_RESOLUTIONS,
   MAX_VARIATIONS,
-  STARTING_CREDITS,
   VIDEO_RESOLUTIONS,
   type AspectRatio,
   type OutputResolution,
@@ -19,29 +19,21 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function readWalletCredits(): Promise<number> {
-  const wallet = await prisma.wallet.upsert({
-    where: { id: LOCAL_WALLET_ID },
-    create: { id: LOCAL_WALLET_ID, credits: STARTING_CREDITS },
-    update: {},
-  });
-  return wallet.credits;
-}
-
 export async function GET() {
+  const auth = await requireUser();
+  if (auth.error) return auth.error;
   try {
-    const [rows, credits] = await Promise.all([
-      prisma.job.findMany({
-        where: notExpired(),
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      }),
-      readWalletCredits(),
-    ]);
-    return NextResponse.json({ jobs: await serializeJobs(rows), credits });
+    const rows = await prisma.job.findMany({
+      where: { ...notExpired(), userId: auth.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    return NextResponse.json({
+      jobs: await serializeJobs(rows),
+      credits: auth.user.credits,
+    });
   } catch (error) {
-    const message = publicError(error, "Failed to list jobs");
-    return NextResponse.json({ error: message }, { status: 503 });
+    return NextResponse.json({ error: publicError(error, "Failed to list jobs") }, { status: 503 });
   }
 }
 
@@ -59,6 +51,9 @@ interface CreateBody {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser();
+  if (auth.error) return auth.error;
+
   let body: CreateBody;
   try {
     body = (await request.json()) as CreateBody;
@@ -84,7 +79,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const aspectRaw = typeof body.aspect === "string" ? body.aspect : typeof body.aspectRatio === "string" ? body.aspectRatio : "";
+  const aspectRaw =
+    typeof body.aspect === "string"
+      ? body.aspect
+      : typeof body.aspectRatio === "string"
+        ? body.aspectRatio
+        : "";
   if (!ASPECT_RATIOS.includes(aspectRaw as AspectRatio)) {
     return NextResponse.json({ error: "Invalid aspect ratio." }, { status: 400 });
   }
@@ -118,52 +118,48 @@ export async function POST(request: Request) {
   const batchId = crypto.randomUUID();
 
   try {
-    const debit = await prisma.wallet.updateMany({
-      where: { id: LOCAL_WALLET_ID, credits: { gte: cost } },
-      data: { credits: { decrement: cost } },
-    });
-    if (debit.count === 0) {
-      await prisma.wallet.upsert({
-        where: { id: LOCAL_WALLET_ID },
-        create: { id: LOCAL_WALLET_ID, credits: STARTING_CREDITS },
-        update: {},
-      });
-      const retry = await prisma.wallet.updateMany({
-        where: { id: LOCAL_WALLET_ID, credits: { gte: cost } },
+    const created = await prisma.$transaction(async (tx) => {
+      const debit = await tx.user.updateMany({
+        where: { id: auth.user.id, credits: { gte: cost } },
         data: { credits: { decrement: cost } },
       });
-      if (retry.count === 0) {
-        const credits = await readWalletCredits();
-        return NextResponse.json(
-          {
-            error: `Not enough credits. This run needs ${cost}. You have ${credits}.`,
-            credits,
-          },
-          { status: 402 },
-        );
+      if (debit.count === 0) {
+        return null;
       }
-    }
+      return Promise.all(
+        Array.from({ length: count }, () =>
+          tx.job.create({
+            data: {
+              userId: auth.user.id,
+              status: "queued",
+              modality: modality as Modality,
+              modelId: model.id,
+              prompt,
+              aspectRatio,
+              duration,
+              resolution,
+              batchId,
+              firstFrameKey,
+              creditsSpent: model.mockCredits,
+              progress: 4,
+              expiresAt,
+            },
+          }),
+        ),
+      );
+    });
 
-    const created = await prisma.$transaction(
-      Array.from({ length: count }, () =>
-        prisma.job.create({
-          data: {
-            status: "queued",
-            modality: modality as Modality,
-            modelId: model.id,
-            prompt,
-            aspectRatio,
-            duration,
-            resolution,
-            batchId,
-            firstFrameKey,
-            creditsSpent: model.mockCredits,
-            progress: 4,
-            expiresAt,
-          },
-        }),
-      ),
-    );
+    if (!created) {
+      const latest = await prisma.user.findUnique({ where: { id: auth.user.id } });
+      const credits = latest?.credits ?? auth.user.credits;
+      return NextResponse.json(
+        {
+          error: `Not enough credits. This run needs ${cost}. You have ${credits}.`,
+          credits,
+        },
+        { status: 402 },
+      );
+    }
 
     for (const job of created) {
       try {
@@ -184,13 +180,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const rows = await prisma.job.findMany({
-      where: { id: { in: created.map((job) => job.id) } },
-    });
-    const credits = await readWalletCredits();
-    return NextResponse.json({ jobs: await serializeJobs(rows), credits }, { status: 201 });
+    const [rows, latest] = await Promise.all([
+      prisma.job.findMany({ where: { id: { in: created.map((job) => job.id) } } }),
+      prisma.user.findUnique({ where: { id: auth.user.id } }),
+    ]);
+    return NextResponse.json(
+      { jobs: await serializeJobs(rows), credits: latest?.credits ?? auth.user.credits - cost },
+      { status: 201 },
+    );
   } catch (error) {
-    const message = publicError(error, "Failed to create job");
-    return NextResponse.json({ error: message }, { status: 503 });
+    return NextResponse.json({ error: publicError(error, "Failed to create job") }, { status: 503 });
   }
 }
