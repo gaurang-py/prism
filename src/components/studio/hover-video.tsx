@@ -20,13 +20,13 @@ export function HoverVideo({
 
   useEffect(() => {
     const node = ref.current;
-    if (!node || autoPlay) return;
-    if (active) {
+    if (!node) return;
+    if (autoPlay || active) {
       void node.play().catch(() => undefined);
-    } else {
-      node.pause();
-      node.currentTime = 0;
+      return;
     }
+    node.pause();
+    node.currentTime = 0;
   }, [active, autoPlay]);
 
   return (
