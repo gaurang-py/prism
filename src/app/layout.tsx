@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Prism",
   description:
-    "AI image and video studio. Mocked generation, no API keys.",
+    "AI image and video studio. Fal.ai generation, stored on Cloudflare R2.",
   icons: {
     icon: "/favicon.svg",
   },

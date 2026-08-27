@@ -9,8 +9,8 @@ export interface GenerationModel {
 }
 
 /**
- * In-code catalog so a real provider router can replace mocks later.
- * Keep ids stable; they are stored on jobs.
+ * In-code catalog. Ids are stored on Job.modelId.
+ * Fal endpoint mapping lives in src/lib/fal-map.ts.
  */
 export const MODELS: GenerationModel[] = [
   {

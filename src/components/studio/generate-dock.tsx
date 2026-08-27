@@ -50,6 +50,7 @@ export function GenerateDock() {
     generate,
     batchCost,
     canAfford,
+    submitting,
   } = useStudio();
 
   const [prompt, setPrompt] = useState("");
@@ -68,7 +69,7 @@ export function GenerateDock() {
   }
 
   function onGenerate() {
-    generate({ prompt });
+    void generate({ prompt });
   }
 
   return (
@@ -215,7 +216,7 @@ export function GenerateDock() {
             <Button
               type="button"
               onClick={onGenerate}
-              disabled={!prompt.trim()}
+              disabled={!prompt.trim() || submitting}
               className="h-10 gap-2 rounded-lg bg-lime px-5 text-sm font-semibold text-lime-foreground hover:bg-lime/90"
             >
               Generate

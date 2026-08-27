@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  queued
+  generating
+  done
+  error
+}
+
+enum Modality {
+  image
+  video
+}
+
+model Job {
+  id            String    @id @default(cuid())
+  status        JobStatus @default(queued)
+  modality      Modality
+  modelId       String
+  prompt        String
+  aspectRatio   String
+  duration      Int?
+  resolution    String?
+  batchId       String?
+  firstFrameKey String?
+  assetKey      String?
+  contentType   String?
+  errorMessage  String?
+  creditsSpent  Int       @default(0)
+  progress      Int       @default(0)
+  falRequestId  String?
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([expiresAt])
+  @@index([batchId])
+}
+
+model Wallet {
+  id      String @id @default("local")
+  credits Int    @default(1240)
+}

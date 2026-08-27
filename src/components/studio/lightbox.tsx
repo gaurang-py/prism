@@ -38,11 +38,18 @@ export function ResultLightbox() {
             </DialogDescription>
 
             <div className="relative flex min-h-[420px] min-w-0 flex-1 items-center justify-center bg-black">
-              {job.modality === "video" && job.videoUrl && job.status === "done" ? (
+              {job.status === "error" ? (
+                <div className="max-w-md px-8 text-center">
+                  <p className="text-xs tracking-[0.18em] text-destructive uppercase">Failed</p>
+                  <p className="mt-3 text-sm leading-relaxed text-white/80">
+                    {job.errorMessage || "Generation failed."}
+                  </p>
+                </div>
+              ) : job.modality === "video" && job.videoUrl && job.status === "done" ? (
                 <video
                   key={job.id}
                   src={job.videoUrl}
-                  poster={job.posterUrl ?? job.imageUrl}
+                  poster={job.posterUrl || job.imageUrl || undefined}
                   className="max-h-[92vh] w-full object-contain"
                   style={{ aspectRatio: aspectCss(job.aspectRatio) }}
                   muted
@@ -51,9 +58,9 @@ export function ResultLightbox() {
                   playsInline
                   controls
                 />
-              ) : (
+              ) : job.posterUrl || job.imageUrl ? (
                 <img
-                  src={job.posterUrl ?? job.imageUrl}
+                  src={job.posterUrl || job.imageUrl}
                   alt={job.prompt}
                   className={
                     job.modality === "video" && job.status === "done"
@@ -61,10 +68,17 @@ export function ResultLightbox() {
                       : "max-h-[92vh] w-full object-contain"
                   }
                 />
+              ) : (
+                <div className="px-8 text-center">
+                  <p className="text-xs tracking-[0.18em] text-lime uppercase">
+                    {job.status === "queued" ? "In queue" : "Generating"}
+                  </p>
+                  <p className="mt-3 text-sm text-white/70">{Math.round(job.progress)}%</p>
+                </div>
               )}
               {job.modality === "video" && !job.videoUrl && job.status === "done" && (
                 <span className="absolute right-4 bottom-4 rounded-full bg-black/60 px-3 py-1 text-xs tracking-wide text-lime uppercase">
-                  {job.duration ?? 5}s push-in
+                  {job.duration ?? 5}s
                 </span>
               )}
             </div>

@@ -21,7 +21,10 @@ export function JobCard({
   const [hovering, setHovering] = useState(false);
   const model = getModel(job.modelId);
   const pending = job.status === "queued" || job.status === "generating";
+  const failed = job.status === "error";
   const isVideo = job.modality === "video";
+  const preview = job.posterUrl || job.imageUrl || job.firstFrameUrl;
+  const canPlayVideo = Boolean(isVideo && job.videoUrl && job.status === "done");
 
   return (
     <button
@@ -44,28 +47,28 @@ export function JobCard({
         className="overflow-hidden rounded-xl border border-white/8 bg-card transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:border-white/16"
         style={{ aspectRatio: aspectCss(job.aspectRatio) }}
       >
-        <div className="relative h-full w-full overflow-hidden">
-          {isVideo && job.videoUrl && job.status === "done" ? (
+        <div className="relative h-full w-full overflow-hidden bg-[#111]">
+          {canPlayVideo ? (
             <video
               ref={videoRef}
               src={job.videoUrl}
-              poster={job.posterUrl ?? job.imageUrl}
+              poster={preview || undefined}
               muted
               loop
               playsInline
               preload="metadata"
               className="h-full w-full object-cover"
             />
-          ) : (
+          ) : preview && !failed ? (
             <img
-              src={job.posterUrl ?? job.imageUrl}
+              src={preview}
               alt=""
               className={cn(
                 "h-full w-full object-cover",
                 isVideo && job.status === "done" && "kenburns",
               )}
             />
-          )}
+          ) : null}
 
           {pending && (
             <div className="absolute inset-0 flex flex-col justify-end bg-black/45 film-shimmer">
@@ -75,6 +78,17 @@ export function JobCard({
                   <span className="tabular-nums">{Math.round(job.progress)}%</span>
                 </div>
                 <Progress value={job.progress} className="h-0.5 bg-white/10" />
+              </div>
+            </div>
+          )}
+
+          {failed && (
+            <div className="absolute inset-0 flex flex-col justify-end bg-black/70">
+              <div className="space-y-1 p-3">
+                <p className="text-[11px] tracking-wide text-destructive uppercase">Failed</p>
+                <p className="line-clamp-3 text-[12px] leading-snug text-white/85">
+                  {job.errorMessage || "Generation failed."}
+                </p>
               </div>
             </div>
           )}

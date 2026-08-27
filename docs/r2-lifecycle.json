@@ -1,0 +1,12 @@
+{
+  "rules": [
+    {
+      "id": "expire-generations-7d",
+      "enabled": true,
+      "prefix": "generations/",
+      "expiration": {
+        "days": 7
+      }
+    }
+  ]
+}

@@ -24,6 +24,7 @@ export interface FirstFrameRef {
   jobId: string;
   url: string;
   prompt: string;
+  key?: string;
 }
 
 export interface Job {
@@ -44,6 +45,9 @@ export interface Job {
   videoUrl?: string;
   posterUrl?: string;
   firstFrameUrl?: string;
+  errorMessage?: string;
+  assetKey?: string;
+  firstFrameKey?: string;
 }
 
 export const STARTING_CREDITS = 1240;

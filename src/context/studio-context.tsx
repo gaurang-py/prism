@@ -6,21 +6,12 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { defaultModelId, getModel, modelsFor, type Modality } from "@/lib/models";
-import { mockDelayMs, pickReel, pickStill } from "@/lib/placeholders";
-import {
-  getServerStudioSnapshot,
-  getStudioSnapshot,
-  patchStudio,
-  subscribeStudio,
-} from "@/lib/studio-persist";
 import {
   IMAGE_RESOLUTIONS,
   MAX_VARIATIONS,
@@ -41,6 +32,8 @@ interface StudioContextValue {
   credits: number;
   jobs: Job[];
   creditError: boolean;
+  loading: boolean;
+  submitting: boolean;
   modality: Modality;
   setModality: (modality: Modality) => void;
   selectedModelId: string;
@@ -58,7 +51,7 @@ interface StudioContextValue {
   clearFirstFrame: () => void;
   attachAsVideoInput: (job: Job) => void;
   attachFile: (file: File) => void;
-  generate: (input: GenerateInput) => boolean;
+  generate: (input: GenerateInput) => Promise<boolean>;
   selectedJobId: string | null;
   selectedJob: Job | null;
   openJob: (id: string) => void;
@@ -70,20 +63,6 @@ interface StudioContextValue {
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
-
-function setCredits(updater: number | ((value: number) => number)) {
-  patchStudio((current) => ({
-    ...current,
-    credits: typeof updater === "function" ? updater(current.credits) : updater,
-  }));
-}
-
-function setJobs(updater: Job[] | ((value: Job[]) => Job[])) {
-  patchStudio((current) => ({
-    ...current,
-    jobs: typeof updater === "function" ? updater(current.jobs) : updater,
-  }));
-}
 
 function defaultResolution(modality: Modality): OutputResolution {
   return modality === "image" ? "1K" : "1080p";
@@ -99,14 +78,11 @@ function modeFromRoute(pathname: string, searchMode: string | null): Modality | 
 export function StudioProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const persisted = useSyncExternalStore(
-    subscribeStudio,
-    getStudioSnapshot,
-    getServerStudioSnapshot,
-  );
-  const credits = persisted.credits;
-  const jobs = persisted.jobs;
 
+  const [credits, setCredits] = useState(STARTING_CREDITS);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [creditError, setCreditError] = useState(false);
   const [modality, setModalityState] = useState<Modality>("image");
   const [selectedModelId, setSelectedModelId] = useState(defaultModelId("image"));
@@ -117,8 +93,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [firstFrame, setFirstFrame] = useState<FirstFrameRef | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [appliedRoute, setAppliedRoute] = useState("");
-  const timeouts = useRef<number[]>([]);
-  const intervals = useRef<number[]>([]);
 
   const routeKey = `${pathname}?${searchParams.toString()}`;
   if (appliedRoute !== routeKey) {
@@ -152,14 +126,33 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  useEffect(() => {
-    const timeoutIds = timeouts.current;
-    const intervalIds = intervals.current;
-    return () => {
-      timeoutIds.forEach((id) => window.clearTimeout(id));
-      intervalIds.forEach((id) => window.clearInterval(id));
-    };
+  const refresh = useCallback(async () => {
+    try {
+      const response = await fetch("/api/jobs", { cache: "no-store" });
+      const payload = (await response.json()) as { jobs?: Job[]; credits?: number; error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not load jobs");
+      }
+      setJobs(payload.jobs ?? []);
+      if (typeof payload.credits === "number") setCredits(payload.credits);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const pending = jobs.some((job) => job.status === "queued" || job.status === "generating");
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, pending ? 2000 : 12000);
+    return () => window.clearInterval(interval);
+  }, [jobs, refresh]);
 
   const setModality = useCallback((next: Modality) => {
     setModalityState(next);
@@ -202,7 +195,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const clearFirstFrame = useCallback(() => setFirstFrame(null), []);
 
   const attachAsVideoInput = useCallback((job: Job) => {
-    if (job.modality !== "image" || !job.imageUrl) return;
+    if (job.modality !== "image") return;
+    const url = job.imageUrl || job.posterUrl;
+    if (!url && !job.assetKey) return;
     setModalityState("video");
     setSelectedModelId((current) => {
       const model = getModel(current);
@@ -214,8 +209,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     );
     setFirstFrame({
       jobId: job.id,
-      url: job.imageUrl,
+      url: url || "",
       prompt: job.prompt,
+      key: job.assetKey,
     });
     setAspectRatio(job.aspectRatio);
     setSelectedJobId(null);
@@ -223,17 +219,38 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const attachFile = useCallback((file: File) => {
-    const url = URL.createObjectURL(file);
+    const preview = URL.createObjectURL(file);
+    const tempId = `upload-${Date.now()}`;
     setFirstFrame({
-      jobId: `upload-${Date.now()}`,
-      url,
+      jobId: tempId,
+      url: preview,
       prompt: "",
     });
-    toast.success("Reference attached");
+    toast.message("Uploading reference…");
+    void (async () => {
+      try {
+        const body = new FormData();
+        body.set("file", file);
+        const response = await fetch("/api/uploads", { method: "POST", body });
+        const payload = (await response.json()) as { key?: string; url?: string; error?: string };
+        if (!response.ok || !payload.key) {
+          throw new Error(payload.error || "Upload failed");
+        }
+        setFirstFrame((current) =>
+          current?.jobId === tempId
+            ? { jobId: tempId, url: payload.url || preview, prompt: "", key: payload.key }
+            : current,
+        );
+        toast.success("Reference attached");
+      } catch (error) {
+        setFirstFrame((current) => (current?.jobId === tempId ? null : current));
+        toast.error(error instanceof Error ? error.message : "Upload failed");
+      }
+    })();
   }, []);
 
   const generate = useCallback(
-    (input: GenerateInput) => {
+    async (input: GenerateInput) => {
       const prompt = input.prompt.trim();
       if (!prompt) {
         toast.error("Add a prompt first");
@@ -250,81 +267,57 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      setCreditError(false);
-      setCredits((value) => value - batchCost);
-
-      for (let index = 0; index < variationCount; index += 1) {
-        const id = crypto.randomUUID();
-        const createdAt = Date.now() + index;
-        const delay = mockDelayMs() + index * 180;
-        const seed = `${prompt}::${index}`;
-        const placeholder = firstFrame?.url ?? pickStill(aspectRatio, seed).src;
-        const queued: Job = {
-          id,
-          modality,
-          modelId: model.id,
-          prompt,
-          aspectRatio,
-          duration: modality === "video" ? duration : undefined,
-          resolution,
-          status: "queued",
-          progress: 4,
-          createdAt,
-          creditsSpent: model.mockCredits,
-          imageUrl: placeholder,
-          posterUrl: placeholder,
-          firstFrameUrl: firstFrame?.url,
-        };
-
-        setJobs((current) => [queued, ...current]);
-
-        const toGenerating = window.setTimeout(() => {
-          setJobs((current) =>
-            current.map((job) =>
-              job.id === id ? { ...job, status: "generating", progress: 14 } : job,
-            ),
-          );
-        }, 380 + index * 80);
-
-        const tick = window.setInterval(() => {
-          setJobs((current) =>
-            current.map((job) => {
-              if (job.id !== id || job.status === "done") return job;
-              const next = Math.min(job.progress + 6 + Math.random() * 9, 92);
-              return { ...job, status: "generating", progress: next };
-            }),
-          );
-        }, 280);
-
-        const complete = window.setTimeout(() => {
-          window.clearInterval(tick);
-          setJobs((current) =>
-            current.map((job) => {
-              if (job.id !== id) return job;
-              const still = job.firstFrameUrl
-                ? { src: job.firstFrameUrl }
-                : pickStill(job.aspectRatio, seed);
-              const reel = job.firstFrameUrl
-                ? undefined
-                : pickReel(job.aspectRatio, seed);
-              return {
-                ...job,
-                status: "done",
-                progress: 100,
-                completedAt: Date.now(),
-                imageUrl: still.src,
-                posterUrl: still.src,
-                videoUrl: reel?.src,
-              };
-            }),
-          );
-        }, delay);
-
-        timeouts.current.push(toGenerating, complete);
-        intervals.current.push(tick);
+      if (firstFrame && !firstFrame.key) {
+        toast.error("Still uploading the reference image");
+        return false;
       }
 
-      return true;
+      setCreditError(false);
+      setSubmitting(true);
+      try {
+        const response = await fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            modality,
+            modelId: model.id,
+            aspect: aspectRatio,
+            resolution,
+            duration: modality === "video" ? duration : undefined,
+            count: variationCount,
+            firstFrameKey: firstFrame?.key,
+          }),
+        });
+        const payload = (await response.json()) as {
+          jobs?: Job[];
+          credits?: number;
+          error?: string;
+        };
+        if (response.status === 402) {
+          setCreditError(true);
+          if (typeof payload.credits === "number") setCredits(payload.credits);
+          toast.error("Not enough credits", { description: payload.error });
+          return false;
+        }
+        if (!response.ok) {
+          throw new Error(payload.error || "Could not create job");
+        }
+        if (typeof payload.credits === "number") setCredits(payload.credits);
+        if (payload.jobs?.length) {
+          setJobs((current) => {
+            const incoming = payload.jobs ?? [];
+            const ids = new Set(incoming.map((job) => job.id));
+            return [...incoming, ...current.filter((job) => !ids.has(job.id))];
+          });
+        }
+        return true;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not create job");
+        return false;
+      } finally {
+        setSubmitting(false);
+      }
     },
     [
       aspectRatio,
@@ -342,16 +335,22 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const closeJob = useCallback(() => setSelectedJobId(null), []);
 
   const resetDemo = useCallback(() => {
-    timeouts.current.forEach((id) => window.clearTimeout(id));
-    intervals.current.forEach((id) => window.clearInterval(id));
-    timeouts.current = [];
-    intervals.current = [];
-    setCredits(STARTING_CREDITS);
-    setJobs([]);
-    setCreditError(false);
-    setFirstFrame(null);
-    setSelectedJobId(null);
-    toast.success("Demo reset", { description: "Credits restored. Board cleared." });
+    void (async () => {
+      try {
+        const response = await fetch("/api/wallet/reset", { method: "POST" });
+        const payload = (await response.json()) as { credits?: number; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Reset failed");
+        if (typeof payload.credits === "number") setCredits(payload.credits);
+        setCreditError(false);
+        setFirstFrame(null);
+        setSelectedJobId(null);
+        toast.success("Credits restored", {
+          description: "Wallet reset to 1,240. History jobs are unchanged.",
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Reset failed");
+      }
+    })();
   }, []);
 
   const selectedJob = useMemo(
@@ -368,6 +367,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       credits,
       jobs,
       creditError,
+      loading,
+      submitting,
       modality,
       setModality,
       selectedModelId,
@@ -410,6 +411,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       firstFrame,
       generate,
       jobs,
+      loading,
       modality,
       openJob,
       resetDemo,
@@ -420,6 +422,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedModelId,
       setModality,
       setVariationCount,
+      submitting,
       variationCount,
     ],
   );

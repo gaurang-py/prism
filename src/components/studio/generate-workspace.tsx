@@ -52,7 +52,7 @@ export function GenerateWorkspace() {
         <JobGallery
           jobs={visible}
           emptyTitle="Describe the scene you imagine"
-          emptyBody="Pick a model in the dock, write a prompt, and generate. Mocked jobs land here in a few seconds."
+          emptyBody="Pick a model in the dock, write a prompt, and generate. Jobs persist in Postgres and land here when Fal finishes."
         />
       </div>
 
