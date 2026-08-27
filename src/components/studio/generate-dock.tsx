@@ -2,7 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element -- dock reference thumb */
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   Diamond,
@@ -20,7 +21,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/auth-context";
 import { useStudio } from "@/context/studio-context";
+import { clearGenerateDraft, readGenerateDraft } from "@/lib/generate-draft";
 import { getModel, modelsFor } from "@/lib/models";
 import {
   ASPECT_RATIOS,
@@ -52,13 +55,43 @@ export function GenerateDock() {
     canAfford,
     submitting,
   } = useStudio();
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
 
   const [prompt, setPrompt] = useState("");
   const [filledFor, setFilledFor] = useState<string | null>(null);
+  const restored = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const model = getModel(selectedModelId);
   const models = modelsFor(modality);
   const resolutions = modality === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
+
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    const fromQuery = searchParams.get("prompt");
+    const draft = readGenerateDraft();
+    if (fromQuery?.trim()) {
+      setPrompt(fromQuery);
+    } else if (draft?.prompt) {
+      setPrompt(draft.prompt);
+    }
+    if (draft) {
+      if (!searchParams.get("model")) selectModel(draft.modelId);
+      setAspectRatio(draft.aspectRatio);
+      setResolution(draft.resolution);
+      setDuration(draft.duration);
+      setVariationCount(draft.variationCount);
+      clearGenerateDraft();
+    }
+  }, [
+    searchParams,
+    selectModel,
+    setAspectRatio,
+    setDuration,
+    setResolution,
+    setVariationCount,
+  ]);
 
   if (firstFrame && filledFor !== firstFrame.jobId && !prompt.trim() && firstFrame.prompt) {
     setFilledFor(firstFrame.jobId);
@@ -208,7 +241,7 @@ export function GenerateDock() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {!canAfford && (
+            {!canAfford && user && (
               <p className="hidden text-xs text-destructive sm:block">
                 Need {batchCost} credits
               </p>

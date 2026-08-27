@@ -12,7 +12,7 @@ import type { PublicUser } from "@/lib/serialize-user";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/generate";
+  const next = searchParams.get("next") || "/home";
   const { setUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +34,7 @@ export default function LoginPage() {
         throw new Error(payload.error || "Could not sign in");
       }
       setUser(payload.user);
-      router.push(next.startsWith("/") ? next : "/generate");
+      router.push(next.startsWith("/") ? next : "/home");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in");

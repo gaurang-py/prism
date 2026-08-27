@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { PrismMark } from "./prism-mark";
 
 const NAV = [
-  { href: "/", label: "Home", icon: Home, id: "home" },
+  { href: "/home", label: "Home", icon: Home, id: "home" },
   { href: "/generate?mode=image", label: "Image", icon: ImageIcon, id: "image" },
   { href: "/generate?mode=video", label: "Video", icon: Clapperboard, id: "video" },
   { href: "/history", label: "History", icon: History, id: "history" },
@@ -44,7 +44,7 @@ export function Sidebar() {
   const balance = user?.credits ?? credits;
 
   function isActive(id: string) {
-    if (id === "home") return pathname === "/";
+    if (id === "home") return pathname === "/home";
     if (id === "history") return pathname === "/history" || pathname === "/library";
     if (id === "image") {
       return (
@@ -61,7 +61,7 @@ export function Sidebar() {
   return (
     <aside className="flex w-[232px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="px-4 pt-5 pb-4">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/home" className="flex items-center gap-2.5">
           <PrismMark className="size-6 text-lime" />
           <span className="text-lg font-semibold tracking-tight">Prism</span>
         </Link>
@@ -137,7 +137,7 @@ export function Sidebar() {
           </DropdownMenu>
         ) : (
           <Link
-            href="/login?next=/generate"
+            href="/login?next=/home"
             className="flex h-10 items-center justify-center rounded-xl bg-lime text-sm font-semibold text-lime-foreground hover:bg-lime/90"
           >
             Sign in

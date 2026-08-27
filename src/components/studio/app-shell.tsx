@@ -3,11 +3,11 @@
 import { Suspense, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
-import { isAuthPath } from "@/lib/paths";
+import { isAuthPath, isMarketingPath } from "@/lib/paths";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  if (isAuthPath(pathname)) {
+  if (isAuthPath(pathname) || isMarketingPath(pathname)) {
     return <>{children}</>;
   }
 

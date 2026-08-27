@@ -12,7 +12,8 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { defaultModelId, getModel, modelsFor, type Modality } from "@/lib/models";
-import { isAuthPath, loginUrl } from "@/lib/paths";
+import { generateContinuePath, saveGenerateDraft } from "@/lib/generate-draft";
+import { isAuthPath, isMarketingPath, loginUrl, signupUrl } from "@/lib/paths";
 import { useAuth } from "@/context/auth-context";
 import {
   IMAGE_RESOLUTIONS,
@@ -80,7 +81,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, setUser } = useAuth();
+  const { user, setUser, loading: authLoading } = useAuth();
 
   const [credits, setCredits] = useState(user?.credits ?? STARTING_CREDITS);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -130,7 +131,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }
 
   const refresh = useCallback(async () => {
-    if (isAuthPath(pathname)) {
+    if (isAuthPath(pathname) || isMarketingPath(pathname)) {
       setLoading(false);
       return;
     }
@@ -165,7 +166,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    if (isAuthPath(pathname)) return;
+    if (isAuthPath(pathname) || isMarketingPath(pathname)) return;
     const pending = jobs.some((job) => job.status === "queued" || job.status === "generating");
     const interval = window.setInterval(() => {
       void refresh();
@@ -277,8 +278,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       }
 
       const model = getModel(selectedModelId) ?? modelsFor(modality)[0];
+      if (!user && !authLoading) {
+        const draft = {
+          prompt,
+          modality,
+          modelId: model.id,
+          aspectRatio,
+          resolution,
+          duration,
+          variationCount,
+        };
+        saveGenerateDraft(draft);
+        router.push(signupUrl(generateContinuePath(draft)));
+        return false;
+      }
+
       const batchCost = model.mockCredits * variationCount;
-      if (credits < batchCost) {
+      if (user && credits < batchCost) {
         setCreditError(true);
         toast.error("Not enough credits", {
           description: `This run needs ${batchCost}. You have ${credits}.`,
@@ -318,7 +334,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           error?: string;
         };
         if (response.status === 401) {
-          router.push(loginUrl(`${pathname}${searchParams.toString() ? `?${searchParams}` : ""}`));
+          saveGenerateDraft({
+            prompt,
+            modality,
+            modelId: model.id,
+            aspectRatio,
+            resolution,
+            duration,
+            variationCount,
+          });
+          router.push(loginUrl(generateContinuePath({ prompt, modality, modelId: model.id })));
           return false;
         }
         if (response.status === 402) {
@@ -364,16 +389,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [
       aspectRatio,
+      authLoading,
       credits,
       duration,
       firstFrame,
       modality,
       resolution,
-      pathname,
       router,
-      searchParams,
       selectedModelId,
       setUser,
+      user,
       variationCount,
     ],
   );

@@ -7,8 +7,13 @@ export function appUrl(): string {
 }
 
 export function loginUrl(next?: string | null): string {
-  const path = next?.startsWith("/") ? next : "/generate";
+  const path = next?.startsWith("/") ? next : "/home";
   return `/login?next=${encodeURIComponent(path)}`;
+}
+
+export function signupUrl(next?: string | null): string {
+  const path = next?.startsWith("/") ? next : "/home";
+  return `/signup?next=${encodeURIComponent(path)}`;
 }
 
 export const AUTH_PAGE_PREFIXES = [
@@ -25,6 +30,7 @@ export function isAuthPath(pathname: string): boolean {
 }
 
 export const PROTECTED_PAGE_PREFIXES = [
+  "/home",
   "/generate",
   "/image",
   "/video",
@@ -38,4 +44,8 @@ export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PAGE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+}
+
+export function isMarketingPath(pathname: string): boolean {
+  return pathname === "/";
 }

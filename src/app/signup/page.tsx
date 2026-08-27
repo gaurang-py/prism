@@ -12,7 +12,7 @@ import type { PublicUser } from "@/lib/serialize-user";
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/generate";
+  const next = searchParams.get("next") || "/home";
   const { setUser } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,7 +35,7 @@ export default function SignupPage() {
         throw new Error(payload.error || "Could not create account");
       }
       setUser(payload.user);
-      router.push(next.startsWith("/") ? next : "/generate");
+      router.push(next.startsWith("/") ? next : "/home");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account");

@@ -1,8 +1,21 @@
 # Prism
 
-AI image and video studio. Home is a Krea-style hub; Generate uses Higgsfield-like chrome with a lime dock. Jobs are persisted in **Postgres**, belong to the signed-in **User**, processed by a **pg-boss worker**, generated on **Fal.ai**, and stored in **Cloudflare R2** under `generations/` for 7 days.
+AI image and video studio. Logged-out visitors see a cinematic marketing landing. Signed-in users land in a Krea-style Home hub. Generate uses Higgsfield-like chrome with a lime dock. Jobs are persisted in **Postgres**, belong to the signed-in **User**, processed by a **pg-boss worker**, generated on **Fal.ai**, and stored in **Cloudflare R2** under `generations/` for 7 days.
 
-`/` is the Home hub (not a marketing landing page).
+## Routes
+
+| Path | Who | What |
+| --- | --- | --- |
+| `/` | Logged out | Marketing landing: full-bleed hero, the same generate dock as the studio, Explore-style Image/Video model cards, Sign up, quiet credit-pack teaser. Marketing nav only (Product, Pricing, Login, Sign up). |
+| `/` | Logged in | Redirects to `/home`. |
+| `/home` | Signed in | In-app Home hub: left rail (Home, Image, Video, History), featured card, Explore model grid. |
+| `/generate`, `/image`, `/video` | Signed in | Studio: Image \| Video tabs, empty board until jobs exist, bottom dock. No marketing hero. |
+| `/history` | Signed in | That user's jobs that have not expired. |
+| `/profile` | Signed in | Name, bio, avatar. |
+| `/credits` | Signed in | Stripe Checkout packs. |
+| `/login`, `/signup`, `/forgot-password`, `/reset-password` | Anyone | Auth. Default return path is `/home`. Using the landing dock while logged out goes through signup, then `/generate` with the prompt preserved. |
+
+The in-app Home / Image / Video / History rail is **not** shown on the marketing landing.
 
 ## Local setup
 
@@ -63,13 +76,15 @@ Create an R2 API token with Object Read & Write on that bucket.
 
 ### 3. Auth and password reset
 
-Signup creates a `User` (name from the form, **0 credits**). Session cookie `prism_session` is httpOnly. Generate and `POST /api/jobs` require a session; anonymous visitors are sent to `/login?next=…`.
+Signup creates a `User` (name from the form, **0 credits**). Session cookie `prism_session` is httpOnly. Generate and `POST /api/jobs` require a session.
+
+Anonymous visitors on `/` can use the generate dock: Prism stores the prompt in `sessionStorage` and sends them to `/signup?next=/generate?…`. After signup they land in the studio with the prompt filled. The white **Start generating** CTA signs them up into `/home`.
 
 Forgot password stores a hashed token + expiry on the user and shows `/reset-password?token=`. If `RESEND_API_KEY` and `SMTP_HOST` are both empty, the reset URL is **logged to the server console** so local dev still works. The token/DB/UI path is never skipped.
 
 ### 4. Stripe credits (test mode)
 
-Packs are defined in `src/lib/credit-packs.ts` (Starter 200 / $9, Studio 1000 / $39, Pro 5000 / $149).
+Packs are defined in `src/lib/credit-packs.ts` (Starter 200 / $9, Studio 1000 / $39, Pro 5000 / $149). The landing page shows a quiet teaser of those three packs. Checkout lives on `/credits` after login.
 
 ```bash
 # in a separate terminal, from a machine with the Stripe CLI
@@ -92,7 +107,7 @@ Uploads (first frames) live under `generations/uploads/` and expire with generat
 
 ## How a run works
 
-1. Sign in. Generate dock `POST /api/jobs` with prompt, modality, model, aspect, resolution, duration, count, optional `firstFrameKey`.
+1. Sign in (or complete signup from the landing dock). Generate dock `POST /api/jobs` with prompt, modality, model, aspect, resolution, duration, count, optional `firstFrameKey`.
 2. API writes `Job` rows owned by the user (status `queued`), **debits `User.credits`**, and enqueues `prism-generate` on pg-boss.
 3. Worker picks the job, calls Fal, downloads bytes, `PUT`s to R2 at `generations/{jobId}.{ext}`, marks the job `done`.
 4. The board polls `GET /api/jobs` (scoped to that user) until `done` or `error`.
@@ -114,15 +129,6 @@ Catalog ids in `src/lib/models.ts` → endpoints in `src/lib/fal-map.ts`:
 | Seedance Fast | `bytedance/seedance-2.0/fast/text-to-video` / `.../fast/image-to-video` |
 | Kling 2.6 | `fal-ai/kling-video/v2.6/pro/text-to-video` / `.../image-to-video` |
 | LTX 2 | `fal-ai/ltx-2.3/text-to-video/fast` / `.../image-to-video/fast` |
-
-## Screens
-
-- **Home** (`/`) — left rail (Home, Image, Video, History), featured card, Explore-style model grid.
-- **Generate** (`/generate`, `/image`, `/video`) — Image \| Video tabs, empty board until jobs exist, bottom dock. Requires login.
-- **History** (`/history`) — that user's jobs that have not expired.
-- **Profile** (`/profile`) — name, bio, avatar.
-- **Credits** (`/credits`) — Stripe Checkout packs.
-- **Auth** (`/login`, `/signup`, `/forgot-password`, `/reset-password`).
 
 ## Stack
 
