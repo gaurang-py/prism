@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { JOB_TTL_MS, LOCAL_WALLET_ID } from "@/lib/constants";
 import { enqueueGenerateJob } from "@/lib/queue";
 import { notExpired, serializeJobs } from "@/lib/serialize-job";
+import { publicError } from "@/lib/http-error";
 import { getModel, type Modality } from "@/lib/models";
 import {
   ASPECT_RATIOS,
@@ -39,7 +40,7 @@ export async function GET() {
     ]);
     return NextResponse.json({ jobs: await serializeJobs(rows), credits });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to list jobs";
+    const message = publicError(error, "Failed to list jobs");
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
     const credits = await readWalletCredits();
     return NextResponse.json({ jobs: await serializeJobs(rows), credits }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to create job";
+    const message = publicError(error, "Failed to create job");
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

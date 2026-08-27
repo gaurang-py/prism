@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { LOCAL_WALLET_ID } from "@/lib/constants";
+import { publicError } from "@/lib/http-error";
 import { STARTING_CREDITS } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function GET() {
   try {
     return NextResponse.json({ credits: await readCredits() });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Wallet unavailable";
+    const message = publicError(error, "Wallet unavailable");
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

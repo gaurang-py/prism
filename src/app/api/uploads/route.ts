@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MAX_UPLOAD_BYTES } from "@/lib/constants";
+import { publicError } from "@/lib/http-error";
 import { extensionForContentType, getReadUrl, objectKey, putObject } from "@/lib/r2";
 
 export const runtime = "nodejs";
@@ -37,10 +38,7 @@ export async function POST(request: Request) {
     const url = await getReadUrl(key);
     return NextResponse.json({ key, url });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Upload failed. Check R2 credentials.";
+    const message = publicError(error, "Upload failed. Check R2 credentials.");
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

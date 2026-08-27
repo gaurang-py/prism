@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { publicError } from "@/lib/http-error";
 import { isExpired, serializeJob } from "@/lib/serialize-job";
 
 export const runtime = "nodejs";
@@ -17,7 +18,7 @@ export async function GET(
     }
     return NextResponse.json({ job: await serializeJob(row) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load job";
+    const message = publicError(error, "Failed to load job");
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }
