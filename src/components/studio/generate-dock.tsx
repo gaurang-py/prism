@@ -126,25 +126,6 @@ export function GenerateDock({
           embedded ? "max-w-none" : "max-w-[920px]",
         )}
       >
-        {embedded && (
-          <div className="mb-2 flex gap-1 rounded-xl bg-white/5 p-1">
-            {(["image", "video"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setModality(mode)}
-                className={cn(
-                  "h-8 flex-1 rounded-lg text-sm font-medium capitalize",
-                  modality === mode
-                    ? "bg-[#c8ff00] text-[#090a08]"
-                    : "text-white/70 hover:text-white",
-                )}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        )}
         {firstFrame && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5">
             <img
