@@ -804,7 +804,7 @@ function Freedom() {
           </h2>
         </div>
         <div>
-          <p className="text-[15px] leading-relaxed text-[#080908]/75">
+          <p className="text-[15px] leading-relaxed text-[#080908]/90">
             Verified adults can opt in to broader NSFW image and video creation—with age gates,
             consent rules and strict safeguards.
           </p>
@@ -812,7 +812,7 @@ function Freedom() {
             {chips.map((item) => (
               <span
                 key={item}
-                className="rounded-full border border-[#080908]/15 bg-[#080908]/[0.05] px-3.5 py-2 text-center text-[12px] font-medium text-[#080908]/8"
+                className="rounded-full border border-[#080908]/25 bg-[#080908]/[0.08] px-3.5 py-2 text-center text-[12px] font-semibold text-[#080908]"
               >
                 {item}
               </span>
@@ -820,8 +820,8 @@ function Freedom() {
           </div>
           <ul className="mt-6 grid gap-2 sm:grid-cols-2">
             {rules.map((item) => (
-              <li key={item} className="flex gap-2 text-[13px] text-[#080908]/8">
-                <Check className="mt-0.5 size-4 shrink-0" />
+              <li key={item} className="flex gap-2 text-[13px] font-medium text-[#080908]">
+                <Check className="mt-0.5 size-4 shrink-0" strokeWidth={2.25} />
                 {item}
               </li>
             ))}
