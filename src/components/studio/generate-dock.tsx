@@ -34,7 +34,11 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function GenerateDock() {
+export function GenerateDock({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const {
     modality,
     selectedModelId,
@@ -54,6 +58,7 @@ export function GenerateDock() {
     batchCost,
     canAfford,
     submitting,
+    setModality,
   } = useStudio();
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -107,8 +112,39 @@ export function GenerateDock() {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center px-4">
-      <div className="pointer-events-auto w-full max-w-[920px] rounded-2xl border border-white/10 bg-[#161616] p-3 shadow-[0_20px_60px_-24px_black]">
+    <div
+      className={cn(
+        "z-20 flex justify-center",
+        embedded
+          ? "relative w-full px-0"
+          : "pointer-events-none absolute inset-x-0 bottom-5 px-4",
+      )}
+    >
+      <div
+        className={cn(
+          "pointer-events-auto w-full rounded-2xl border border-white/10 bg-[#161616] p-3 shadow-[0_20px_60px_-24px_black]",
+          embedded ? "max-w-none" : "max-w-[920px]",
+        )}
+      >
+        {embedded && (
+          <div className="mb-2 flex gap-1 rounded-xl bg-white/5 p-1">
+            {(["image", "video"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setModality(mode)}
+                className={cn(
+                  "h-8 flex-1 rounded-lg text-sm font-medium capitalize",
+                  modality === mode
+                    ? "bg-[#c8ff00] text-[#090a08]"
+                    : "text-white/70 hover:text-white",
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        )}
         {firstFrame && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5">
             <img
@@ -154,7 +190,11 @@ export function GenerateDock() {
           <Textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Describe the scene you imagine."
+            placeholder={
+              embedded
+                ? "A rain-soaked neon street in Mumbai, cinematic motion…"
+                : "Describe the scene you imagine."
+            }
             className="min-h-11 max-h-28 flex-1 resize-none rounded-xl border-0 bg-transparent px-2 py-2.5 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {

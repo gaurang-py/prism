@@ -6,14 +6,14 @@ AI image and video studio. Logged-out visitors see a cinematic marketing landing
 
 | Path | Who | What |
 | --- | --- | --- |
-| `/` | Logged out | Marketing landing: full-bleed hero, the same generate dock as the studio, Explore-style Image/Video model cards, Sign up, quiet credit-pack teaser. Marketing nav only (Product, Pricing, Login, Sign up). |
+| `/` | Logged out | Marketing landing (lime / `#080908`): sticky promo bar + nav, hero with studio mock + generate dock, showcase carousel, image→video lab, pain points, model picker, three steps, use-cases, compare, 18+ NSFW, Built in India, Free ₹0 / Creator credits pricing, FAQ, final CTA. |
 | `/` | Logged in | Redirects to `/home`. |
 | `/home` | Signed in | In-app Home hub: looping cheapest-video hero (LTX 2), hover-to-play video cards, Image / Video / NSFW filters, NSFW opt-in toggle. |
 | `/generate`, `/image`, `/video` | Signed in | Studio: Image \| Video tabs, empty board until jobs exist, bottom dock. No marketing hero. |
 | `/history` | Signed in | That user's jobs that have not expired. |
 | `/profile` | Signed in | Name, bio, avatar. |
 | `/credits` | Signed in | Stripe Checkout packs. |
-| `/login`, `/signup`, `/forgot-password`, `/reset-password` | Anyone | Auth. Default return path is `/home`. Using the landing dock while logged out goes through signup, then `/generate` with the prompt preserved. |
+| `/login`, `/signup`, `/forgot-password`, `/reset-password` | Anyone | Auth. Default return path is `/home`. Landing CTAs go to signup with **100 welcome image credits**. Using the landing dock while logged out goes through signup, then `/generate` with the prompt preserved. |
 
 The in-app Home / Image / Video / History rail is **not** shown on the marketing landing.
 
@@ -76,15 +76,15 @@ Create an R2 API token with Object Read & Write on that bucket.
 
 ### 3. Auth and password reset
 
-Signup creates a `User` (name from the form, **0 credits**). Session cookie `prism_session` is httpOnly. Generate and `POST /api/jobs` require a session.
+Signup creates a `User` (name from the form, **100 welcome image credits**). Session cookie `prism_session` is httpOnly. Generate and `POST /api/jobs` require a session.
 
-Anonymous visitors on `/` can use the generate dock: Prism stores the prompt in `sessionStorage` and sends them to `/signup?next=/generate?…`. After signup they land in the studio with the prompt filled. The white **Start generating** CTA signs them up into `/home`.
+Anonymous visitors on `/` can use the generate dock: Prism stores the prompt in `sessionStorage` and sends them to `/signup?next=/generate?…`. After signup they land in the studio with the prompt filled. Lime **Claim 100 Free Credits** / **Create My First Image** CTAs sign them up into `/home`.
 
 Forgot password stores a hashed token + expiry on the user and shows `/reset-password?token=`. If `RESEND_API_KEY` and `SMTP_HOST` are both empty, the reset URL is **logged to the server console** so local dev still works. The token/DB/UI path is never skipped.
 
 ### 4. Stripe credits (test mode)
 
-Packs are defined in `src/lib/credit-packs.ts` (Starter 200 / $9, Studio 1000 / $39, Pro 5000 / $149). The landing page shows a quiet teaser of those three packs. Checkout lives on `/credits` after login.
+Packs are defined in `src/lib/credit-packs.ts` (Starter 200 / $9, Studio 1000 / $39, Pro 5000 / $149). The marketing landing prices Free ₹0 (100 welcome credits) and shows Creator credits as coming soon. Checkout for paid packs lives on `/credits` after login.
 
 ```bash
 # in a separate terminal, from a machine with the Stripe CLI

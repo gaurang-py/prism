@@ -26,7 +26,7 @@ model User {
   name                    String
   bio                     String    @default("")
   avatarKey               String?
-  credits                 Int       @default(0)
+  credits                 Int       @default(100)
   nsfwEnabled             Boolean   @default(false)
   nsfwAgeConfirmed        Boolean   @default(false)
   passwordResetTokenHash  String?

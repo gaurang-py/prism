@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         email,
         name,
         passwordHash: await bcrypt.hash(password, 12),
-        credits: 0,
+        credits: 100,
       },
     });
 

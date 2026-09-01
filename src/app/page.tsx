@@ -1,9 +1,9 @@
 import { LandingPage } from "@/components/marketing/landing-page";
 
 export const metadata = {
-  title: "Prism — Image and video studio",
+  title: "Prism — Imagine it. Generate it. Images + Video.",
   description:
-    "A cheaper multi-model studio for stills and clips. Flux, Seedance, Kling, SDXL — one generate dock.",
+    "Create AI images and cinematic videos with leading models in one studio built in India. 100 free image credits. No card required.",
 };
 
 export default function RootPage() {

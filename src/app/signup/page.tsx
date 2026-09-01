@@ -45,7 +45,7 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthCard title="Create an account" subtitle="Your name is saved on your profile. Credits start at zero — buy a pack when you are ready to generate.">
+    <AuthCard title="Create an account" subtitle="Your name is saved on your profile. You get 100 welcome image credits — no card required.">
       <form onSubmit={onSubmit} className="space-y-3">
         <label className="block space-y-1.5 text-sm">
           <span className="text-muted-foreground">Name</span>
