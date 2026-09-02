@@ -5,13 +5,13 @@ import { failJob } from "@/lib/fail-job";
 import { enqueueGenerateJob } from "@/lib/queue";
 import { notExpired, serializeJobs } from "@/lib/serialize-job";
 import { publicError } from "@/lib/http-error";
-import { durationsFor, getModel, type Modality } from "@/lib/models";
+import { coerceVideoResolution, durationsFor, getModel, videoResolutionsFor, type Modality } from "@/lib/models";
+import { providerForModel, providerConfigured } from "@/lib/providers";
 import { requireUser } from "@/lib/require-user";
 import {
   ASPECT_RATIOS,
   IMAGE_RESOLUTIONS,
   MAX_VARIATIONS,
-  VIDEO_RESOLUTIONS,
   type AspectRatio,
   type OutputResolution,
   type VideoDuration,
@@ -72,11 +72,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "modality must be image or video." }, { status: 400 });
   }
 
-  const model = getModel(typeof body.modelId === "string" ? body.modelId : "");
+  const model = getModel(typeof body.modelId === "string" ? body.modelId : "", true);
   if (!model || model.modality !== modality) {
     return NextResponse.json(
       { error: "Unknown model for this modality." },
       { status: 400 },
+    );
+  }
+  if (!providerConfigured(providerForModel(model.id))) {
+    return NextResponse.json(
+      { error: "That model is not available on this deployment." },
+      { status: 503 },
     );
   }
   if (model.nsfw && !auth.user.nsfwEnabled) {
@@ -97,13 +103,6 @@ export async function POST(request: Request) {
   }
   const aspectRatio = aspectRaw as AspectRatio;
 
-  const allowedRes = modality === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
-  const resolutionRaw = typeof body.resolution === "string" ? body.resolution : allowedRes[0];
-  if (!(allowedRes as readonly string[]).includes(resolutionRaw)) {
-    return NextResponse.json({ error: "Invalid resolution." }, { status: 400 });
-  }
-  const resolution = resolutionRaw as OutputResolution;
-
   let duration: VideoDuration | null = null;
   if (modality === "video") {
     const allowed = durationsFor(model.id);
@@ -115,6 +114,28 @@ export async function POST(request: Request) {
       );
     }
     duration = requested as VideoDuration;
+  }
+
+  const resolutionRaw =
+    typeof body.resolution === "string"
+      ? body.resolution
+      : modality === "image"
+        ? "1K"
+        : "720p";
+  if (modality === "image" && !(IMAGE_RESOLUTIONS as readonly string[]).includes(resolutionRaw)) {
+    return NextResponse.json({ error: "Invalid resolution." }, { status: 400 });
+  }
+
+  let resolution = resolutionRaw as OutputResolution;
+  if (modality === "video") {
+    resolution = coerceVideoResolution(model.id, duration, resolution);
+    const allowedVideoRes = videoResolutionsFor(model.id, duration);
+    if (!(allowedVideoRes as readonly string[]).includes(resolution)) {
+      return NextResponse.json(
+        { error: `${resolution} is not supported for a ${duration}s clip on ${model.name}.` },
+        { status: 400 },
+      );
+    }
   }
 
   const count = Math.min(

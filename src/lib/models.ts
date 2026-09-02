@@ -1,4 +1,5 @@
-import { VIDEO_DURATIONS } from "./types";
+import { veoDuration, veoResolution } from "./providers/google";
+import { VIDEO_DURATIONS, VIDEO_RESOLUTIONS, type OutputResolution, type VideoDuration, type VideoResolution } from "./types";
 
 export type Modality = "image" | "video";
 
@@ -205,12 +206,34 @@ export const MODELS: GenerationModel[] = [
 
 export type HomeFilter = "all" | "image" | "video" | "nsfw";
 
+export function isProviderLive(provider: ProviderId): boolean {
+  // Client bundles cannot read server env — the live catalog is Google-only for now.
+  if (typeof window !== "undefined") {
+    return provider === "google";
+  }
+  if (provider === "google") {
+    return Boolean(
+      process.env.GOOGLE_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim(),
+    );
+  }
+  return Boolean(process.env.FAL_KEY?.trim());
+}
+
+/** Models whose upstream API key is configured on this deployment. */
+export function liveModels(): GenerationModel[] {
+  return MODELS.filter((model) => isProviderLive(model.provider));
+}
+
 export function visibleModels(opts: {
   nsfwEnabled?: boolean;
   filter?: HomeFilter;
   modality?: Modality;
+  /** When true (default), hide models whose provider key is missing. */
+  configuredOnly?: boolean;
 } = {}): GenerationModel[] {
+  const configuredOnly = opts.configuredOnly !== false;
   return MODELS.filter((model) => {
+    if (configuredOnly && !isProviderLive(model.provider)) return false;
     if (model.nsfw && !opts.nsfwEnabled) return false;
     if (opts.modality && model.modality !== opts.modality) return false;
     if (opts.filter === "image") return model.modality === "image";
@@ -220,16 +243,23 @@ export function visibleModels(opts: {
   });
 }
 
-export function modelsFor(modality: Modality, nsfwEnabled = false): GenerationModel[] {
-  return visibleModels({ modality, nsfwEnabled });
+export function modelsFor(modality: Modality, nsfwEnabled = false, configuredOnly = true): GenerationModel[] {
+  return visibleModels({ modality, nsfwEnabled, configuredOnly });
 }
 
-export function getModel(id: string): GenerationModel | undefined {
-  return MODELS.find((model) => model.id === id);
+export function getModel(id: string, configuredOnly = false): GenerationModel | undefined {
+  const model = MODELS.find((m) => m.id === id);
+  if (!model) return undefined;
+  if (configuredOnly && !isProviderLive(model.provider)) return undefined;
+  return model;
 }
 
 export function defaultModelId(modality: Modality, nsfwEnabled = false): string {
-  return modelsFor(modality, nsfwEnabled)[0].id;
+  const list = modelsFor(modality, nsfwEnabled);
+  if (list.length === 0) {
+    throw new Error(`No live ${modality} models are configured.`);
+  }
+  return list[0].id;
 }
 
 /**
@@ -255,9 +285,45 @@ export function coerceDuration(modelId: string, value: number | null | undefined
   );
 }
 
-/** Lowest-credit SFW video in the catalog. Today that is LTX 2. */
-export function cheapestVideoModel(): GenerationModel {
-  const videos = MODELS.filter((model) => model.modality === "video" && !model.nsfw);
+/**
+ * Veo only allows 1080p at 6 or 8 seconds — 4 second clips must be 720p.
+ * Fal video models accept both at every duration they offer.
+ */
+export function videoResolutionsFor(
+  modelId: string,
+  duration?: VideoDuration | null,
+): readonly VideoResolution[] {
+  const model = getModel(modelId);
+  if (model?.modality !== "video") return VIDEO_RESOLUTIONS;
+  if (model.provider === "google") {
+    return veoDuration(duration) === 4 ? (["720p"] as const) : VIDEO_RESOLUTIONS;
+  }
+  return VIDEO_RESOLUTIONS;
+}
+
+export function coerceVideoResolution(
+  modelId: string,
+  duration: VideoDuration | null | undefined,
+  resolution: OutputResolution,
+): OutputResolution {
+  const model = getModel(modelId);
+  if (model?.modality === "video" && model.provider === "google") {
+    return veoResolution(duration, resolution);
+  }
+  if (model?.modality === "video") {
+    const allowed = videoResolutionsFor(modelId, duration);
+    return (allowed as readonly string[]).includes(resolution) ? resolution : allowed[0];
+  }
+  return resolution;
+}
+
+/** Lowest-credit live SFW video in the catalog. */
+export function cheapestVideoModel(configuredOnly = true): GenerationModel {
+  const source = configuredOnly ? liveModels() : MODELS;
+  const videos = source.filter((model) => model.modality === "video" && !model.nsfw);
+  if (videos.length === 0) {
+    throw new Error("No live video models are configured.");
+  }
   return videos.reduce((best, model) =>
     model.mockCredits < best.mockCredits ? model : best,
   );

@@ -4,9 +4,9 @@ import {
   MODELS,
   cheapestVideoModel,
   coerceDuration,
-  defaultModelId,
   durationsFor,
   getModel,
+  modelsFor,
 } from "../src/lib/models";
 import {
   buildGoogleImageRequest,
@@ -15,6 +15,7 @@ import {
   googleModelId,
   veoAspect,
   veoDuration,
+  veoResolution,
 } from "../src/lib/providers/google";
 import { providerForModel } from "../src/lib/providers";
 import type { GenerateRequest } from "../src/lib/providers/types";
@@ -59,12 +60,18 @@ test("catalog: fal models still route to fal", () => {
 });
 
 test("catalog: google models lead, so they are the defaults", () => {
-  assert.equal(getModel(defaultModelId("image"))!.provider, "google");
-  assert.equal(getModel(defaultModelId("video"))!.provider, "google");
+  assert.equal(modelsFor("image", false, false)[0]!.provider, "google");
+  assert.equal(modelsFor("video", false, false)[0]!.provider, "google");
 });
 
-test("catalog: adding Veo did not steal the cheapest-video home hero", () => {
-  assert.equal(cheapestVideoModel().id, "ltx-2");
+test("catalog: cheapest google video is Veo 3.1 Lite", () => {
+  const videos = MODELS.filter(
+    (model) => model.modality === "video" && !model.nsfw && model.provider === "google",
+  );
+  const cheapest = videos.reduce((best, model) =>
+    model.mockCredits < best.mockCredits ? model : best,
+  );
+  assert.equal(cheapest.id, "veo-3.1-lite");
 });
 
 test("image: every studio aspect ratio passes through untouched", () => {
@@ -142,6 +149,20 @@ test("veo: request uses `source`, asks for one sample, and omits generateAudio",
 test("veo: resolution defaults to 720p", () => {
   const call = buildGoogleVideoRequest(req({ modelId: "veo-3.1-lite", modality: "video", resolution: null }));
   assert.equal(call.config.resolution, "720p");
+});
+
+test("veo: 1080p is rejected at 4 seconds", () => {
+  assert.equal(veoResolution(4, "1080p"), "720p");
+  const call = buildGoogleVideoRequest(
+    req({ modelId: "veo-3.1", modality: "video", duration: 4, resolution: "1080p" }),
+  );
+  assert.equal(call.config.resolution, "720p");
+  assert.equal(call.config.durationSeconds, 4);
+});
+
+test("veo: 1080p is allowed at 6 and 8 seconds", () => {
+  assert.equal(veoResolution(6, "1080p"), "1080p");
+  assert.equal(veoResolution(8, "1080p"), "1080p");
 });
 
 test("veo: a first frame becomes source.image bytes", () => {

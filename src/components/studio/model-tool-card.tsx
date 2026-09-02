@@ -26,6 +26,12 @@ import { generatePath } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const MODEL_ICONS: Record<string, LucideIcon> = {
+  "nano-banana-2": Zap,
+  "nano-banana-pro": Aperture,
+  "nano-banana": ImageIcon,
+  "veo-3.1-fast": Clapperboard,
+  "veo-3.1": Video,
+  "veo-3.1-lite": Play,
   "flux-2-schnell": Zap,
   "flux-2-dev": Aperture,
   "seedream-5": Moon,
@@ -40,7 +46,7 @@ export const MODEL_ICONS: Record<string, LucideIcon> = {
   "hunyuan-video": Clapperboard,
 };
 
-export const NEW_MODEL_IDS = new Set(["seedance-fast", "flux-2-dev", "pony-v7", "hunyuan-video"]);
+export const NEW_MODEL_IDS = new Set(["nano-banana-2", "veo-3.1-lite"]);
 
 export function ModelToolCard({
   model,

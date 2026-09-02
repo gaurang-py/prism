@@ -1696,8 +1696,8 @@ function SignupModal({
       modality,
       modelId,
       aspectRatio: "3:4",
-      resolution: modality === "image" ? "1K" : "1080p",
-      duration: 5,
+      resolution: modality === "image" ? "1K" : "720p",
+      duration: 6,
       variationCount: 1,
     });
   };

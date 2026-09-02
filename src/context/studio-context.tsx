@@ -13,10 +13,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   coerceDuration,
+  coerceVideoResolution,
   defaultDurationFor,
   defaultModelId,
   getModel,
   modelsFor,
+  videoResolutionsFor,
   type Modality,
 } from "@/lib/models";
 import { generateContinuePath, saveGenerateDraft } from "@/lib/generate-draft";
@@ -73,8 +75,23 @@ interface StudioContextValue {
 
 const StudioContext = createContext<StudioContextValue | null>(null);
 
-function defaultResolution(modality: Modality): OutputResolution {
-  return modality === "image" ? "1K" : "1080p";
+function defaultResolution(
+  modality: Modality,
+  modelId?: string,
+  duration?: VideoDuration | null,
+): OutputResolution {
+  if (modality === "image") return "1K";
+  const id = modelId ?? defaultModelId("video");
+  const allowed = videoResolutionsFor(id, duration ?? defaultDurationFor(id));
+  return allowed.includes("1080p") ? "1080p" : allowed[0];
+}
+
+function snapResolution(
+  modelId: string,
+  duration: VideoDuration,
+  current: OutputResolution,
+): OutputResolution {
+  return coerceVideoResolution(modelId, duration, current);
 }
 
 function modeFromRoute(pathname: string, searchMode: string | null): Modality | null {
@@ -114,16 +131,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   if (appliedRoute !== routeKey) {
     setAppliedRoute(routeKey);
     const routeMode = modeFromRoute(pathname, searchParams.get("mode"));
-    const routeModel = getModel(searchParams.get("model") ?? "");
+    const routeModel = getModel(searchParams.get("model") ?? "", true);
     if (routeModel && (!routeModel.nsfw || user?.nsfwEnabled)) {
       setModalityState(routeModel.modality);
       setSelectedModelId(routeModel.id);
-      setResolution((current) => {
-        const allowed = routeModel.modality === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
-        return (allowed as readonly string[]).includes(current)
-          ? current
-          : defaultResolution(routeModel.modality);
-      });
+      setResolution((current) =>
+        snapResolution(
+          routeModel.id,
+          coerceDuration(routeModel.id, durationChoice),
+          (routeModel.modality === "image" ? IMAGE_RESOLUTIONS : videoResolutionsFor(routeModel.id, durationChoice) as readonly string[]).includes(current)
+            ? current
+            : defaultResolution(routeModel.modality, routeModel.id, durationChoice),
+        ),
+      );
       if (routeModel.modality === "image") setFirstFrame(null);
     } else if (routeMode) {
       setModalityState(routeMode);
@@ -133,10 +153,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return defaultModelId(routeMode, Boolean(user?.nsfwEnabled));
       });
       setResolution((current) => {
-        const allowed = routeMode === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
-        return (allowed as readonly string[]).includes(current)
-          ? current
-          : defaultResolution(routeMode);
+        const nextId = defaultModelId(routeMode, Boolean(user?.nsfwEnabled));
+        return snapResolution(
+          nextId,
+          coerceDuration(nextId, durationChoice),
+          current,
+        );
       });
       if (routeMode === "image") setFirstFrame(null);
     }
@@ -191,6 +213,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [user?.credits]);
 
   useEffect(() => {
+    setResolution((current) => snapResolution(selectedModelId, duration, current));
+  }, [duration, selectedModelId]);
+
+  useEffect(() => {
     const model = getModel(selectedModelId);
     if (model?.nsfw && !user?.nsfwEnabled) {
       setSelectedModelId(defaultModelId(model.modality, false));
@@ -218,12 +244,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (model?.modality === next) return current;
       return defaultModelId(next, Boolean(user?.nsfwEnabled));
     });
-    setResolution((current) => {
-      const allowed = next === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
-      return (allowed as readonly string[]).includes(current)
-        ? current
-        : defaultResolution(next);
-    });
+    setResolution((current) =>
+      snapResolution(
+        defaultModelId(next, Boolean(user?.nsfwEnabled)),
+        coerceDuration(defaultModelId(next, Boolean(user?.nsfwEnabled)), durationChoice),
+        current,
+      ),
+    );
     if (next === "image") {
       setFirstFrame(null);
     }
@@ -234,12 +261,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (!model) return;
     setModalityState(model.modality);
     setSelectedModelId(model.id);
-    setResolution((current) => {
-      const allowed = model.modality === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
-      return (allowed as readonly string[]).includes(current)
-        ? current
-        : defaultResolution(model.modality);
-    });
+    setResolution((current) =>
+      snapResolution(model.id, coerceDuration(model.id, durationChoice), current),
+    );
     if (model.modality === "image") {
       setFirstFrame(null);
     }
@@ -262,7 +286,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       return defaultModelId("video", Boolean(user?.nsfwEnabled));
     });
     setResolution((current) =>
-      (VIDEO_RESOLUTIONS as readonly string[]).includes(current) ? current : "1080p",
+      snapResolution(
+        defaultModelId("video", Boolean(user?.nsfwEnabled)),
+        duration,
+        (VIDEO_RESOLUTIONS as readonly string[]).includes(current) ? current : "720p",
+      ),
     );
     setFirstFrame({
       jobId: job.id,

@@ -1,6 +1,6 @@
 import { GoogleGenAI, type GenerateVideosOperation } from "@google/genai";
 import { ProviderError, type GenerateRequest, type GeneratedMedia, type ProgressFn } from "./types";
-import type { AspectRatio, VideoDuration } from "../types";
+import type { AspectRatio, OutputResolution, VideoDuration } from "../types";
 
 /**
  * Catalog id -> Gemini API model id.
@@ -78,6 +78,15 @@ export function veoDuration(duration: VideoDuration | null | undefined): number 
   );
 }
 
+/** Veo accepts 720p at every length; 1080p only at 6s and 8s — not 4s. */
+export function veoResolution(
+  duration: VideoDuration | null | undefined,
+  requested: OutputResolution | null | undefined,
+): "720p" | "1080p" {
+  if (veoDuration(duration) === 4) return "720p";
+  return requested === "1080p" ? "1080p" : "720p";
+}
+
 // ---------------------------------------------------------------------------
 // Request building — pure, so it can be asserted without touching the network.
 // ---------------------------------------------------------------------------
@@ -143,7 +152,7 @@ export function buildGoogleVideoRequest(
       // sampleCount must be exactly 1 on the Developer API.
       numberOfVideos: 1,
       aspectRatio: veoAspect(req.aspectRatio),
-      resolution: req.resolution === "1080p" ? "1080p" : "720p",
+      resolution: veoResolution(req.duration, req.resolution),
       durationSeconds: veoDuration(req.duration),
       // generateAudio is rejected outside Gemini Enterprise Agent Platform,
       // and personGeneration:"allow_adult" is not supported here either.
@@ -176,6 +185,9 @@ export function googleMessage(error: unknown): string {
   }
 
   const lower = text.toLowerCase();
+  if (lower.includes("1080p") && lower.includes("duration")) {
+    return "1080p is only available on 6s and 8s Veo clips. Pick 720p for a 4s clip, or use a longer duration.";
+  }
   if (lower.includes("quota") || lower.includes("resource_exhausted") || lower.includes("billing")) {
     return "Google rejected this run for quota. Image and video generation are not on the Gemini API free tier — enable billing on the project behind GOOGLE_API_KEY, then retry.";
   }
