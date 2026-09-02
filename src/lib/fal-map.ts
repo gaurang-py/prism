@@ -1,21 +1,9 @@
+import { ProviderError } from "./providers/types";
+import type { GenerateRequest } from "./providers/types";
 import type { AspectRatio, OutputResolution, VideoDuration } from "./types";
 
-export class ProviderError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ProviderError";
-  }
-}
-
-export interface GenerateRequest {
-  modelId: string;
-  modality: "image" | "video";
-  prompt: string;
-  aspectRatio: AspectRatio;
-  duration?: VideoDuration | null;
-  resolution?: OutputResolution | null;
-  firstFrameUrl?: string | null;
-}
+export { ProviderError };
+export type { GenerateRequest };
 
 interface FalCall {
   endpoint: string;

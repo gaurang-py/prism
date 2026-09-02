@@ -1,8 +1,11 @@
 import { prisma } from "./db";
 import { GENERATE_QUEUE } from "./constants";
 import { getBoss } from "./queue";
-import { runFalGeneration } from "./fal-run";
-import { assertFalKey } from "./fal-map";
+import {
+  assertProviderConfigured,
+  providerForModel,
+  runGeneration,
+} from "./providers";
 import {
   assertR2Configured,
   extensionForContentType,
@@ -41,7 +44,7 @@ export async function processGeneration(jobId: string): Promise<void> {
   }
 
   try {
-    assertFalKey();
+    assertProviderConfigured(providerForModel(job.modelId));
     assertR2Configured();
   } catch (error) {
     await failJob(jobId, error instanceof Error ? error.message : "Provider is not configured.");
@@ -67,7 +70,7 @@ export async function processGeneration(jobId: string): Promise<void> {
   }
 
   try {
-    const media = await runFalGeneration(
+    const media = await runGeneration(
       {
         modelId: job.modelId,
         modality: job.modality,
@@ -94,15 +97,24 @@ export async function processGeneration(jobId: string): Promise<void> {
       data: { progress: 88, falRequestId: media.requestId ?? undefined },
     });
 
-    const download = await fetch(media.url);
-    if (!download.ok) {
-      throw new Error(`Failed to download Fal output (${download.status}).`);
+    // Fal gives us a public CDN URL; Google resolves its own bytes because the
+    // Files URI needs the API key. Handle both without a second round trip.
+    let bytes: Buffer;
+    let contentType: string;
+    if (media.source === "bytes") {
+      bytes = media.bytes;
+      contentType = media.contentType;
+    } else {
+      const download = await fetch(media.url);
+      if (!download.ok) {
+        throw new Error(`Failed to download the provider output (${download.status}).`);
+      }
+      bytes = Buffer.from(await download.arrayBuffer());
+      contentType =
+        media.contentType ||
+        download.headers.get("content-type") ||
+        (job.modality === "video" ? "video/mp4" : "image/png");
     }
-    const bytes = Buffer.from(await download.arrayBuffer());
-    const contentType =
-      media.contentType ||
-      download.headers.get("content-type") ||
-      (job.modality === "video" ? "video/mp4" : "image/png");
     const ext = extensionForContentType(contentType, job.modality === "video" ? "mp4" : "png");
     const assetKey = objectKey(`${job.id}.${ext}`);
 

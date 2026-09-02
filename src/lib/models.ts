@@ -1,9 +1,13 @@
 export type Modality = "image" | "video";
 
+/** Which upstream actually serves a model. */
+export type ProviderId = "fal" | "google";
+
 export interface GenerationModel {
   id: string;
   name: string;
   modality: Modality;
+  provider: ProviderId;
   mockCredits: number;
   tagline: string;
   nsfw?: boolean;
@@ -13,14 +17,73 @@ export interface GenerationModel {
 
 /**
  * In-code catalog. Ids are stored on Job.modelId.
- * Fal endpoint mapping lives in src/lib/fal-map.ts.
+ * Endpoint mapping lives next to each provider:
+ *   provider "fal"    -> src/lib/fal-map.ts
+ *   provider "google" -> src/lib/providers/google.ts
+ * Order matters: the first entry per modality is that modality's default, so the
+ * Google models lead — they are the ones wired to a live key.
  * NSFW models stay hidden until the user opts in (18+ confirm on the User row).
  */
 export const MODELS: GenerationModel[] = [
   {
+    id: "nano-banana-2",
+    name: "Nano Banana 2",
+    modality: "image",
+    provider: "google",
+    mockCredits: 6,
+    tagline: "Google's fast image workhorse",
+  },
+  {
+    id: "nano-banana-pro",
+    name: "Nano Banana Pro",
+    modality: "image",
+    provider: "google",
+    mockCredits: 12,
+    tagline: "Reasons before it draws, 2K",
+  },
+  {
+    id: "nano-banana",
+    name: "Nano Banana",
+    modality: "image",
+    provider: "google",
+    mockCredits: 4,
+    tagline: "The original, cheapest Google still",
+  },
+  {
+    id: "veo-3.1-fast",
+    name: "Veo 3.1 Fast",
+    modality: "video",
+    provider: "google",
+    mockCredits: 28,
+    tagline: "Veo quality, quicker turnaround",
+    previewLoop: "/placeholders/reel-dune.mp4",
+    previewPoster: "/placeholders/star-ridge.jpg",
+  },
+  {
+    id: "veo-3.1",
+    name: "Veo 3.1",
+    modality: "video",
+    provider: "google",
+    mockCredits: 72,
+    tagline: "Google's top-end motion",
+    previewLoop: "/placeholders/reel.mp4",
+    previewPoster: "/placeholders/tower-night.jpg",
+  },
+  {
+    id: "veo-3.1-lite",
+    name: "Veo 3.1 Lite",
+    modality: "video",
+    provider: "google",
+    mockCredits: 18,
+    tagline: "Cheapest Veo, quick tests",
+    previewLoop: "/placeholders/reel-portrait.mp4",
+    previewPoster: "/placeholders/alpine.jpg",
+  },
+  {
     id: "flux-2-schnell",
     name: "Flux 2 Schnell",
     modality: "image",
+    provider: "fal",
     mockCredits: 4,
     tagline: "Fast drafts, still sharp",
   },
@@ -28,6 +91,7 @@ export const MODELS: GenerationModel[] = [
     id: "flux-2-dev",
     name: "Flux 2 Dev",
     modality: "image",
+    provider: "fal",
     mockCredits: 8,
     tagline: "Higher fidelity, slower",
   },
@@ -35,6 +99,7 @@ export const MODELS: GenerationModel[] = [
     id: "seedream-5",
     name: "Seedream 5",
     modality: "image",
+    provider: "fal",
     mockCredits: 10,
     tagline: "Cinematic stills, rich grade",
   },
@@ -42,6 +107,7 @@ export const MODELS: GenerationModel[] = [
     id: "sdxl",
     name: "SDXL",
     modality: "image",
+    provider: "fal",
     mockCredits: 3,
     tagline: "Classic workhorse",
   },
@@ -49,6 +115,7 @@ export const MODELS: GenerationModel[] = [
     id: "wan-2.6",
     name: "Wan 2.6",
     modality: "video",
+    provider: "fal",
     mockCredits: 24,
     tagline: "Motion with weight",
     previewLoop: "/placeholders/reel-portrait.mp4",
@@ -58,6 +125,7 @@ export const MODELS: GenerationModel[] = [
     id: "seedance-fast",
     name: "Seedance Fast",
     modality: "video",
+    provider: "fal",
     mockCredits: 18,
     tagline: "Quick cuts, cheap tests",
     previewLoop: "/placeholders/reel.mp4",
@@ -67,6 +135,7 @@ export const MODELS: GenerationModel[] = [
     id: "kling-2.6",
     name: "Kling 2.6",
     modality: "video",
+    provider: "fal",
     mockCredits: 32,
     tagline: "Longer takes, smoother",
     previewLoop: "/placeholders/reel-dune.mp4",
@@ -76,6 +145,7 @@ export const MODELS: GenerationModel[] = [
     id: "ltx-2",
     name: "LTX 2",
     modality: "video",
+    provider: "fal",
     mockCredits: 16,
     tagline: "Lean and experimental",
     previewLoop: "/placeholders/reel-dune.mp4",
@@ -85,6 +155,7 @@ export const MODELS: GenerationModel[] = [
     id: "flux-uncensored",
     name: "Flux Uncensored",
     modality: "image",
+    provider: "fal",
     mockCredits: 8,
     tagline: "Flux Dev, safety checker off",
     nsfw: true,
@@ -93,6 +164,7 @@ export const MODELS: GenerationModel[] = [
     id: "pony-v7",
     name: "Pony V7",
     modality: "image",
+    provider: "fal",
     mockCredits: 6,
     tagline: "Adult character stills",
     nsfw: true,
@@ -101,6 +173,7 @@ export const MODELS: GenerationModel[] = [
     id: "sdxl-uncensored",
     name: "SDXL Uncensored",
     modality: "image",
+    provider: "fal",
     mockCredits: 4,
     tagline: "Fast SDXL, checker off",
     nsfw: true,
@@ -109,6 +182,7 @@ export const MODELS: GenerationModel[] = [
     id: "hunyuan-video",
     name: "Hunyuan Video",
     modality: "video",
+    provider: "fal",
     mockCredits: 28,
     tagline: "Open video, checker off",
     nsfw: true,

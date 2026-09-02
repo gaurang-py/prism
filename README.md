@@ -1,6 +1,6 @@
 # Prism
 
-AI image and video studio. Logged-out visitors see a cinematic marketing landing. Signed-in users land in a Krea-style Home hub. Generate uses Higgsfield-like chrome with a lime dock. Jobs are persisted in **Postgres**, belong to the signed-in **User**, processed by a **pg-boss worker**, generated on **Fal.ai**, and stored in **Cloudflare R2** under `generations/` for 7 days.
+AI image and video studio. Logged-out visitors see a cinematic marketing landing. Signed-in users land in a Krea-style Home hub. Generate uses Higgsfield-like chrome with a lime dock. Jobs are persisted in **Postgres**, belong to the signed-in **User**, processed by a **pg-boss worker**, generated on **Google (Gemini + Veo)** or **Fal.ai** depending on the model, and stored in **Cloudflare R2** under `generations/` for 7 days.
 
 ## Routes
 
@@ -57,7 +57,8 @@ Copy `.env.example` to `.env`. Never commit real secrets.
 | `DATABASE_URL` | Postgres connection string. Default matches docker-compose: `postgresql://prism:prism@localhost:5432/prism` |
 | `AUTH_SECRET` | HMAC secret for session cookies and password-reset tokens |
 | `APP_URL` | Public origin for Stripe return URLs and reset links. Default `http://127.0.0.1:43123` |
-| `FAL_KEY` | Fal.ai API key. If missing, jobs **fail** with a readable error — they do not fake-complete. |
+| `GOOGLE_API_KEY` | Gemini API key ([AI Studio](https://aistudio.google.com/apikey)); `GEMINI_API_KEY` is accepted as an alias. Serves the Nano Banana and Veo models. Image and video generation are **not on the Gemini free tier** — the project behind the key needs billing on, or every Google run fails with a quota error. |
+| `FAL_KEY` | Fal.ai API key. Serves the Flux / Seedream / Wan / Kling / LTX / NSFW models. If missing, jobs **fail** with a readable error — they do not fake-complete. |
 | `R2_ACCOUNT_ID` | Cloudflare account id (informational; endpoint is what the SDK uses) |
 | `R2_ACCESS_KEY_ID` | R2 API token access key |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret |
@@ -132,6 +133,41 @@ NSFW catalog (real Fal routes only):
 
 Cheapest **SFW video** in the catalog is **LTX 2** (16 credits). That model is the logged-in Home featured CTA.
 
+## Providers
+
+Every catalog entry in `src/lib/models.ts` declares a `provider`. `src/lib/providers/index.ts`
+routes a job to that provider and asserts only *its* key, so a missing `FAL_KEY` never blocks a
+Google run and vice versa.
+
+| provider | key | mapping | returns |
+| --- | --- | --- | --- |
+| `google` | `GOOGLE_API_KEY` | `src/lib/providers/google.ts` | bytes (Veo Files URIs need the key to read) |
+| `fal` | `FAL_KEY` | `src/lib/fal-map.ts` | a public CDN URL |
+
+## Google model map
+
+Catalog ids → Gemini API model ids (`src/lib/providers/google.ts`). These are the
+**defaults** for both modalities — they lead the catalog.
+
+| Catalog | Credits | Gemini model | Method |
+| --- | --- | --- | --- |
+| Nano Banana 2 | 6 | `gemini-3.1-flash-image` | `generateContent` |
+| Nano Banana Pro | 12 | `gemini-3-pro-image` | `generateContent` |
+| Nano Banana | 4 | `gemini-2.5-flash-image` | `generateContent` |
+| Veo 3.1 Fast | 28 | `veo-3.1-fast-generate-preview` | `predictLongRunning` |
+| Veo 3.1 | 72 | `veo-3.1-generate-preview` | `predictLongRunning` |
+| Veo 3.1 Lite | 18 | `veo-3.1-lite-generate-preview` | `predictLongRunning` |
+
+Constraints the API enforces, verified against it and encoded in the mappers:
+
+- **Images** take all five studio aspect ratios unchanged, and `1K` / `2K` via `imageConfig.imageSize`.
+  `responseModalities` is `["TEXT","IMAGE"]` because Nano Banana Pro reasons before it draws.
+- **Veo** only accepts `16:9` and `9:16`, so `4:3`/`1:1` fold to landscape and `3:4` to portrait.
+- **Veo** only accepts `durationSeconds` of 4, 6 or 8 — the studio's 5s maps to 6, its 10s to 8.
+- **Veo** requires `sampleCount` of exactly 1, rejects `generateAudio`, and rejects
+  `personGeneration: "allow_adult"` on the Developer API. Batches of >1 are issued as separate jobs.
+- Veo is long-running: the worker polls the operation every 10s and gives up after 10 minutes.
+
 ## Fal model map
 
 Catalog ids in `src/lib/models.ts` → endpoints in `src/lib/fal-map.ts`:
@@ -151,6 +187,19 @@ Catalog ids in `src/lib/models.ts` → endpoints in `src/lib/fal-map.ts`:
 | SDXL Uncensored (NSFW) | `fal-ai/fast-sdxl` (`enable_safety_checker: false`) |
 | Hunyuan Video (NSFW) | `fal-ai/hunyuan-video` (`enable_safety_checker: false`) |
 
+## Tests
+
+```bash
+npm test        # catalog + request-mapping unit tests, no network
+npm run test:live   # sends the real production payloads to the Gemini API
+```
+
+`test:live` needs `GOOGLE_API_KEY`, and skips itself without one. Google validates a
+request body **before** it checks quota, so a malformed payload comes back `400
+INVALID_ARGUMENT` and a well-formed one comes back `429` on a project without billing.
+The suite asserts the 429 — which is how the mappers stay verified against the real API
+even on a free-tier key. With billing on, the same calls generate for real.
+
 ## Stack
 
-Next.js App Router, TypeScript, Tailwind CSS v4, shadcn/ui, Prisma 6, PostgreSQL, pg-boss, Fal.ai, Cloudflare R2, Stripe Checkout, httpOnly sessions.
+Next.js App Router, TypeScript, Tailwind CSS v4, shadcn/ui, Prisma 6, PostgreSQL, pg-boss, Google Gemini API (`@google/genai`), Fal.ai, Cloudflare R2, Stripe Checkout, httpOnly sessions.
