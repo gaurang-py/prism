@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { JOB_TTL_MS } from "@/lib/constants";
+import { failJob } from "@/lib/fail-job";
 import { enqueueGenerateJob } from "@/lib/queue";
 import { notExpired, serializeJobs } from "@/lib/serialize-job";
 import { publicError } from "@/lib/http-error";
@@ -182,14 +183,7 @@ export async function POST(request: Request) {
           error instanceof Error
             ? error.message
             : "Could not enqueue generation. Is Postgres running?";
-        await prisma.job.update({
-          where: { id: job.id },
-          data: {
-            status: "error",
-            errorMessage: message,
-            completedAt: new Date(),
-          },
-        });
+        await failJob(job.id, message);
       }
     }
 

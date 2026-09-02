@@ -89,6 +89,11 @@ export function JobCard({
                 <p className="line-clamp-3 text-[12px] leading-snug text-white/85">
                   {job.errorMessage || "Generation failed."}
                 </p>
+                {job.creditsRefunded && job.creditsSpent > 0 && (
+                  <p className="text-[11px] text-lime">
+                    {job.creditsSpent} credits returned
+                  </p>
+                )}
               </div>
             </div>
           )}

@@ -46,6 +46,7 @@ export async function serializeJob(row: JobRow): Promise<Job> {
     createdAt: row.createdAt.getTime(),
     completedAt: row.completedAt?.getTime(),
     creditsSpent: row.creditsSpent,
+    creditsRefunded: row.creditsRefunded,
     imageUrl: modality === "image" ? assetUrl : firstFrameUrl,
     videoUrl: modality === "video" && status === "done" ? assetUrl : undefined,
     posterUrl: modality === "video" ? firstFrameUrl || assetUrl : assetUrl,

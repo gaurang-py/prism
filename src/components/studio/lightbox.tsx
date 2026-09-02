@@ -44,6 +44,11 @@ export function ResultLightbox() {
                   <p className="mt-3 text-sm leading-relaxed text-white/80">
                     {job.errorMessage || "Generation failed."}
                   </p>
+                  {job.creditsRefunded && job.creditsSpent > 0 && (
+                    <p className="mt-3 text-sm text-lime">
+                      {job.creditsSpent} credits returned to your balance.
+                    </p>
+                  )}
                 </div>
               ) : job.modality === "video" && job.videoUrl && job.status === "done" ? (
                 <video
@@ -152,7 +157,10 @@ export function ResultLightbox() {
                   )}
                   <div>
                     <dt className="text-muted-foreground">Spend</dt>
-                    <dd>{job.creditsSpent} cr</dd>
+                    <dd>
+                      {job.creditsSpent} cr
+                      {job.creditsRefunded ? " · refunded" : ""}
+                    </dd>
                   </div>
                 </dl>
               </div>

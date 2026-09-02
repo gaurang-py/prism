@@ -10,7 +10,7 @@
     "build": "prisma generate && next build",
     "start": "next start --port 43123 --hostname 127.0.0.1",
     "lint": "eslint",
-    "test": "node --import tsx --test tests/google-provider.test.ts",
+    "test": "node --import tsx --test tests/google-provider.test.ts tests/fail-job.test.ts",
     "test:live": "node --import tsx --test tests/google-live.test.ts",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",

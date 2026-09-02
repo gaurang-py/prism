@@ -47,6 +47,7 @@ export interface Job {
   createdAt: number;
   completedAt?: number;
   creditsSpent: number;
+  creditsRefunded?: boolean;
   imageUrl: string;
   videoUrl?: string;
   posterUrl?: string;

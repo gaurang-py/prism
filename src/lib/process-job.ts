@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { GENERATE_QUEUE } from "./constants";
+import { failJob } from "./fail-job";
 import { getBoss } from "./queue";
 import {
   assertProviderConfigured,
@@ -14,22 +15,6 @@ import {
   putObject,
 } from "./r2";
 import type { AspectRatio, OutputResolution, VideoDuration } from "./types";
-
-function clipError(message: string): string {
-  return message.slice(0, 1000);
-}
-
-async function failJob(jobId: string, message: string): Promise<void> {
-  await prisma.job.updateMany({
-    where: { id: jobId, status: { not: "done" } },
-    data: {
-      status: "error",
-      errorMessage: clipError(message),
-      progress: 0,
-      completedAt: new Date(),
-    },
-  });
-}
 
 export async function processGeneration(jobId: string): Promise<void> {
   const job = await prisma.job.findUnique({ where: { id: jobId } });

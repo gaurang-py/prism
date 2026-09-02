@@ -157,7 +157,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (!response.ok) {
         throw new Error(payload.error || "Could not load jobs");
       }
-      setJobs(payload.jobs ?? []);
+      const nextJobs = payload.jobs ?? [];
+      setJobs((previous) => {
+        for (const job of nextJobs) {
+          const prior = previous.find((row) => row.id === job.id);
+          if (
+            prior &&
+            prior.status !== "error" &&
+            job.status === "error" &&
+            job.creditsRefunded &&
+            job.creditsSpent > 0
+          ) {
+            toast.message(`${job.creditsSpent} credits returned`, {
+              description: job.errorMessage || "Generation failed.",
+            });
+          }
+        }
+        return nextJobs;
+      });
       if (typeof payload.credits === "number") {
         setCredits(payload.credits);
         setUser((current) => (current ? { ...current, credits: payload.credits ?? current.credits } : current));

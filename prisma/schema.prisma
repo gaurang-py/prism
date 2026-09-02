@@ -66,8 +66,9 @@ model Job {
   assetKey      String?
   contentType   String?
   errorMessage  String?
-  creditsSpent  Int       @default(0)
-  progress      Int       @default(0)
+  creditsSpent    Int       @default(0)
+  creditsRefunded Boolean   @default(false)
+  progress        Int       @default(0)
   falRequestId  String?
   expiresAt     DateTime
   createdAt     DateTime  @default(now())
