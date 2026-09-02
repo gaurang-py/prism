@@ -69,7 +69,13 @@ export function veoAspect(aspect: AspectRatio): "16:9" | "9:16" {
 }
 
 export function veoDuration(duration: VideoDuration | null | undefined): number {
-  return duration === 10 ? 8 : 6;
+  // The dock now offers 4/6/8 directly, but jobs queued before that (and any
+  // hand-rolled request) can still carry a 5 or a 10 — snap those onto the
+  // nearest length Veo will accept, preferring the longer one on a tie.
+  if (duration == null) return 6;
+  return VEO_DURATIONS.reduce((best, option) =>
+    Math.abs(option - duration) <= Math.abs(best - duration) ? option : best,
+  );
 }
 
 // ---------------------------------------------------------------------------

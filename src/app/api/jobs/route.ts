@@ -4,7 +4,7 @@ import { JOB_TTL_MS } from "@/lib/constants";
 import { enqueueGenerateJob } from "@/lib/queue";
 import { notExpired, serializeJobs } from "@/lib/serialize-job";
 import { publicError } from "@/lib/http-error";
-import { getModel, type Modality } from "@/lib/models";
+import { durationsFor, getModel, type Modality } from "@/lib/models";
 import { requireUser } from "@/lib/require-user";
 import {
   ASPECT_RATIOS,
@@ -105,8 +105,15 @@ export async function POST(request: Request) {
 
   let duration: VideoDuration | null = null;
   if (modality === "video") {
-    const value = body.duration === 10 || body.duration === "10" ? 10 : 5;
-    duration = value as VideoDuration;
+    const allowed = durationsFor(model.id);
+    const requested = Number.parseInt(String(body.duration ?? allowed[0]), 10);
+    if (!allowed.includes(requested)) {
+      return NextResponse.json(
+        { error: `${model.name} only supports ${allowed.join("s, ")}s clips.` },
+        { status: 400 },
+      );
+    }
+    duration = requested as VideoDuration;
   }
 
   const count = Math.min(

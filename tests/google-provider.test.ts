@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MODELS, getModel, defaultModelId, cheapestVideoModel } from "../src/lib/models";
+import {
+  MODELS,
+  cheapestVideoModel,
+  coerceDuration,
+  defaultModelId,
+  durationsFor,
+  getModel,
+} from "../src/lib/models";
 import {
   buildGoogleImageRequest,
   buildGoogleVideoRequest,
@@ -158,4 +165,49 @@ test("errors: a bad key is reported as a key problem", () => {
 test("errors: safety blocks name the NSFW route", () => {
   const raw = '{"error":{"code":400,"message":"blocked by safety filters"}}';
   assert.match(googleMessage(new Error(raw)), /NSFW/);
+});
+
+// --- per-model clip lengths -------------------------------------------------
+
+test("durations: each video model advertises what its provider accepts", () => {
+  assert.deepEqual(durationsFor("veo-3.1"), [4, 6, 8]);
+  assert.deepEqual(durationsFor("veo-3.1-fast"), [4, 6, 8]);
+  assert.deepEqual(durationsFor("veo-3.1-lite"), [4, 6, 8]);
+  assert.deepEqual(durationsFor("ltx-2"), [6, 10]);
+  assert.deepEqual(durationsFor("wan-2.6"), [5, 10]);
+  assert.deepEqual(durationsFor("kling-2.6"), [5, 10]);
+});
+
+test("durations: every video model declares a list, no image model does", () => {
+  for (const model of MODELS) {
+    if (model.modality === "video") {
+      assert.ok(model.durations?.length, `${model.id} has no durations`);
+    } else {
+      assert.equal(model.durations, undefined, `${model.id} is an image model`);
+    }
+  }
+});
+
+test("durations: coercion snaps onto the model's own list", () => {
+  assert.equal(coerceDuration("veo-3.1", 5), 6, "5s is a 400 from Veo");
+  assert.equal(coerceDuration("veo-3.1", 10), 8, "10s is a 400 from Veo");
+  assert.equal(coerceDuration("veo-3.1", 4), 4);
+  assert.equal(coerceDuration("ltx-2", 5), 6);
+  assert.equal(coerceDuration("wan-2.6", 5), 5);
+  assert.equal(coerceDuration("wan-2.6", null), 5);
+});
+
+test("durations: veoDuration only ever emits something Veo accepts", () => {
+  for (const value of [1, 4, 5, 6, 7, 8, 9, 10, 30, null, undefined] as const) {
+    assert.ok([4, 6, 8].includes(veoDuration(value)), `${value} escaped the clamp`);
+  }
+});
+
+test("durations: the dock's offer is exactly what the mapper will send", () => {
+  // If these ever drift, users pick a length the provider rejects.
+  for (const id of ["veo-3.1", "veo-3.1-fast", "veo-3.1-lite"]) {
+    for (const offered of durationsFor(id)) {
+      assert.equal(veoDuration(offered), offered, `${id} would rewrite ${offered}s`);
+    }
+  }
 });

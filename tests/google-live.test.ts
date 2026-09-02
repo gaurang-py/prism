@@ -1,7 +1,7 @@
 import "../src/lib/load-env";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MODELS } from "../src/lib/models";
+import { MODELS, durationsFor } from "../src/lib/models";
 import { googleKeyConfigured } from "../src/lib/providers/google";
 import { runGeneration } from "../src/lib/providers";
 import type { AspectRatio, OutputResolution, VideoDuration } from "../src/lib/types";
@@ -17,19 +17,23 @@ import type { AspectRatio, OutputResolution, VideoDuration } from "../src/lib/ty
  */
 const GOOGLE_MODELS = MODELS.filter((m) => m.provider === "google");
 
-const CASES: Array<{ aspectRatio: AspectRatio; resolution: OutputResolution; duration: VideoDuration }> = [
-  { aspectRatio: "16:9", resolution: "1K", duration: 5 },
-  { aspectRatio: "9:16", resolution: "2K", duration: 10 },
-  { aspectRatio: "1:1", resolution: "1K", duration: 5 },
-  { aspectRatio: "4:3", resolution: "2K", duration: 10 },
-  { aspectRatio: "3:4", resolution: "1K", duration: 5 },
+const CASES: Array<{ aspectRatio: AspectRatio; resolution: OutputResolution }> = [
+  { aspectRatio: "16:9", resolution: "1K" },
+  { aspectRatio: "9:16", resolution: "2K" },
+  { aspectRatio: "1:1", resolution: "1K" },
+  { aspectRatio: "4:3", resolution: "2K" },
+  { aspectRatio: "3:4", resolution: "1K" },
 ];
 
 const skip = googleKeyConfigured() ? false : "GOOGLE_API_KEY is not set";
 
 for (const model of GOOGLE_MODELS) {
+  // Send every clip length the dock actually offers for this model.
+  const durations: Array<VideoDuration | null> =
+    model.modality === "video" ? [...durationsFor(model.id)] : [null];
   for (const shape of CASES) {
-    const label = `${model.id} ${shape.aspectRatio} ${shape.resolution} ${shape.duration}s`;
+   for (const duration of durations) {
+    const label = `${model.id} ${shape.aspectRatio} ${shape.resolution}${duration ? ` ${duration}s` : ""}`;
     test(`live: Google accepts the payload for ${label}`, { skip, concurrency: false }, async () => {
       let message = "";
       try {
@@ -41,7 +45,7 @@ for (const model of GOOGLE_MODELS) {
           resolution: model.modality === "video"
             ? (shape.resolution === "2K" ? "1080p" : "720p")
             : shape.resolution,
-          duration: model.modality === "video" ? shape.duration : null,
+          duration,
           firstFrameUrl: null,
         });
         return; // billing is on and it actually generated — also a pass
@@ -60,5 +64,6 @@ for (const model of GOOGLE_MODELS) {
         `expected a quota/billing gate for ${label}, got: ${message}`,
       );
     });
+   }
   }
 }

@@ -9,8 +9,7 @@ function asAspect(value: string): AspectRatio {
 }
 
 function asDuration(value: number | null): VideoDuration | undefined {
-  if (value === 5 || value === 10) return value;
-  return undefined;
+  return typeof value === "number" && value > 0 ? value : undefined;
 }
 
 function asResolution(value: string | null): OutputResolution | undefined {

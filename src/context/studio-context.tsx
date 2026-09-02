@@ -11,7 +11,14 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { defaultModelId, getModel, modelsFor, type Modality } from "@/lib/models";
+import {
+  coerceDuration,
+  defaultDurationFor,
+  defaultModelId,
+  getModel,
+  modelsFor,
+  type Modality,
+} from "@/lib/models";
 import { generateContinuePath, saveGenerateDraft } from "@/lib/generate-draft";
 import { isAuthPath, isMarketingPath, loginUrl, signupUrl } from "@/lib/paths";
 import { useAuth } from "@/context/auth-context";
@@ -91,7 +98,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [modality, setModalityState] = useState<Modality>("image");
   const [selectedModelId, setSelectedModelId] = useState(defaultModelId("image"));
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("3:4");
-  const [duration, setDuration] = useState<VideoDuration>(5);
+  const [durationChoice, setDuration] = useState<VideoDuration>(() =>
+    defaultDurationFor(defaultModelId("video")),
+  );
+  // Switching model can strand a length the new one rejects (Veo has no 5s), so
+  // the exposed duration is always snapped to the selected model's own list.
+  const duration = coerceDuration(selectedModelId, durationChoice);
   const [resolution, setResolution] = useState<OutputResolution>("1K");
   const [variationCount, setVariationCountState] = useState(1);
   const [firstFrame, setFirstFrame] = useState<FirstFrameRef | null>(null);
@@ -167,6 +179,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setSelectedModelId(defaultModelId(model.modality, false));
     }
   }, [selectedModelId, user?.nsfwEnabled]);
+
 
   useEffect(() => {
     void refresh();

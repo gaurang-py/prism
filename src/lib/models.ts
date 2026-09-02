@@ -1,3 +1,5 @@
+import { VIDEO_DURATIONS } from "./types";
+
 export type Modality = "image" | "video";
 
 /** Which upstream actually serves a model. */
@@ -10,6 +12,8 @@ export interface GenerationModel {
   provider: ProviderId;
   mockCredits: number;
   tagline: string;
+  /** Clip lengths in seconds this model accepts. Video models only. */
+  durations?: readonly number[];
   nsfw?: boolean;
   previewLoop?: string;
   previewPoster?: string;
@@ -56,6 +60,7 @@ export const MODELS: GenerationModel[] = [
     provider: "google",
     mockCredits: 28,
     tagline: "Veo quality, quicker turnaround",
+    durations: [4, 6, 8],
     previewLoop: "/placeholders/reel-dune.mp4",
     previewPoster: "/placeholders/star-ridge.jpg",
   },
@@ -66,6 +71,7 @@ export const MODELS: GenerationModel[] = [
     provider: "google",
     mockCredits: 72,
     tagline: "Google's top-end motion",
+    durations: [4, 6, 8],
     previewLoop: "/placeholders/reel.mp4",
     previewPoster: "/placeholders/tower-night.jpg",
   },
@@ -76,6 +82,7 @@ export const MODELS: GenerationModel[] = [
     provider: "google",
     mockCredits: 18,
     tagline: "Cheapest Veo, quick tests",
+    durations: [4, 6, 8],
     previewLoop: "/placeholders/reel-portrait.mp4",
     previewPoster: "/placeholders/alpine.jpg",
   },
@@ -118,6 +125,7 @@ export const MODELS: GenerationModel[] = [
     provider: "fal",
     mockCredits: 24,
     tagline: "Motion with weight",
+    durations: [5, 10],
     previewLoop: "/placeholders/reel-portrait.mp4",
     previewPoster: "/placeholders/portrait-gold.jpg",
   },
@@ -128,6 +136,7 @@ export const MODELS: GenerationModel[] = [
     provider: "fal",
     mockCredits: 18,
     tagline: "Quick cuts, cheap tests",
+    durations: [5, 10],
     previewLoop: "/placeholders/reel.mp4",
     previewPoster: "/placeholders/neon-rain.jpg",
   },
@@ -138,6 +147,7 @@ export const MODELS: GenerationModel[] = [
     provider: "fal",
     mockCredits: 32,
     tagline: "Longer takes, smoother",
+    durations: [5, 10],
     previewLoop: "/placeholders/reel-dune.mp4",
     previewPoster: "/placeholders/fog-woods.jpg",
   },
@@ -148,6 +158,7 @@ export const MODELS: GenerationModel[] = [
     provider: "fal",
     mockCredits: 16,
     tagline: "Lean and experimental",
+    durations: [6, 10],
     previewLoop: "/placeholders/reel-dune.mp4",
     previewPoster: "/placeholders/dune-gold.jpg",
   },
@@ -185,6 +196,7 @@ export const MODELS: GenerationModel[] = [
     provider: "fal",
     mockCredits: 28,
     tagline: "Open video, checker off",
+    durations: [5, 10],
     nsfw: true,
     previewLoop: "/placeholders/reel.mp4",
     previewPoster: "/placeholders/neon-rain.jpg",
@@ -218,6 +230,29 @@ export function getModel(id: string): GenerationModel | undefined {
 
 export function defaultModelId(modality: Modality, nsfwEnabled = false): string {
   return modelsFor(modality, nsfwEnabled)[0].id;
+}
+
+/**
+ * Clip lengths a model accepts. Veo only takes 4, 6 or 8 seconds; the Fal video
+ * models take 5 or 10; LTX 2 takes 6 or 10. Showing the wrong ones in the dock
+ * means the provider rejects the run, so the dock reads this.
+ */
+export function durationsFor(modelId: string): readonly number[] {
+  return getModel(modelId)?.durations ?? VIDEO_DURATIONS;
+}
+
+export function defaultDurationFor(modelId: string): number {
+  return durationsFor(modelId)[0];
+}
+
+/** Snap an arbitrary duration onto the nearest one the model accepts. */
+export function coerceDuration(modelId: string, value: number | null | undefined): number {
+  const allowed = durationsFor(modelId);
+  if (value == null) return allowed[0];
+  if (allowed.includes(value)) return value;
+  return allowed.reduce((best, option) =>
+    Math.abs(option - value) <= Math.abs(best - value) ? option : best,
+  );
 }
 
 /** Lowest-credit SFW video in the catalog. Today that is LTX 2. */

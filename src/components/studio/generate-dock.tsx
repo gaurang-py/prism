@@ -24,12 +24,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/auth-context";
 import { useStudio } from "@/context/studio-context";
 import { clearGenerateDraft, readGenerateDraft } from "@/lib/generate-draft";
-import { getModel, modelsFor } from "@/lib/models";
+import { durationsFor, getModel, modelsFor } from "@/lib/models";
 import {
   ASPECT_RATIOS,
   IMAGE_RESOLUTIONS,
   MAX_VARIATIONS,
-  VIDEO_DURATIONS,
   VIDEO_RESOLUTIONS,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -70,6 +69,9 @@ export function GenerateDock({
   const model = getModel(selectedModelId);
   const nsfwEnabled = Boolean(user?.nsfwEnabled);
   const models = modelsFor(modality, nsfwEnabled);
+  // Veo takes 4/6/8s, the Fal video models take 5/10, LTX 2 takes 6/10 — only
+  // offer what the selected model will actually accept.
+  const durations = durationsFor(selectedModelId);
   const resolutions = modality === "image" ? IMAGE_RESOLUTIONS : VIDEO_RESOLUTIONS;
 
   useEffect(() => {
@@ -235,7 +237,7 @@ export function GenerateDock({
 
           {modality === "video" && (
             <DockMenu label={`${duration}s`}>
-              {VIDEO_DURATIONS.map((value) => (
+              {durations.map((value) => (
                 <DropdownMenuItem key={value} onClick={() => setDuration(value)}>
                   {value}s
                 </DropdownMenuItem>

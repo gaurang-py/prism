@@ -76,7 +76,7 @@ export async function processGeneration(jobId: string): Promise<void> {
         modality: job.modality,
         prompt: job.prompt,
         aspectRatio: job.aspectRatio as AspectRatio,
-        duration: (job.duration === 5 || job.duration === 10 ? job.duration : 5) as VideoDuration,
+        duration: job.duration as VideoDuration | null,
         resolution: job.resolution as OutputResolution | null,
         firstFrameUrl,
       },

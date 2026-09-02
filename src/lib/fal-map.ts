@@ -33,7 +33,8 @@ function videoAspect(aspect: AspectRatio): "16:9" | "9:16" | "1:1" | "4:3" | "3:
 }
 
 function durationSeconds(duration: VideoDuration | null | undefined): number {
-  return duration === 10 ? 10 : 5;
+  // The dock only offers lengths the model declares, so pass the choice through.
+  return duration ?? 5;
 }
 
 function buildImageCall(req: GenerateRequest): FalCall {
