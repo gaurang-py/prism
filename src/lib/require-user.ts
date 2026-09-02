@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionUser, type SessionUser } from "./session";
 import { loginUrl } from "./paths";
 
+export type { SessionUser };
+
 export async function requireUser(): Promise<
   { user: SessionUser; error?: undefined } | { user?: undefined; error: NextResponse }
 > {

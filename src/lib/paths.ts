@@ -38,6 +38,7 @@ export const PROTECTED_PAGE_PREFIXES = [
   "/library",
   "/profile",
   "/credits",
+  "/admin",
 ] as const;
 
 export function isProtectedPath(pathname: string): boolean {

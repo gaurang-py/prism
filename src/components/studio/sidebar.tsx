@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Clapperboard, History, Home, ImageIcon } from "lucide-react";
+import { Clapperboard, History, Home, ImageIcon, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -46,6 +46,7 @@ export function Sidebar() {
   function isActive(id: string) {
     if (id === "home") return pathname === "/home";
     if (id === "history") return pathname === "/history" || pathname === "/library";
+    if (id === "admin") return pathname.startsWith("/admin");
     if (id === "image") {
       return (
         pathname === "/image" ||
@@ -90,6 +91,21 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-3 p-3">
+        {user?.role === "admin" ? (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+              isActive("admin")
+                ? "bg-white/8 text-white"
+                : "text-muted-foreground hover:bg-white/5 hover:text-white",
+            )}
+          >
+            <Shield className="size-4" strokeWidth={1.75} />
+            Admin
+          </Link>
+        ) : null}
+
         <Link
           href={user ? "/credits" : "/login?next=/credits"}
           className={cn(
@@ -131,6 +147,11 @@ export function Sidebar() {
               <DropdownMenuItem asChild>
                 <Link href="/credits">Buy credits</Link>
               </DropdownMenuItem>
+              {user.role === "admin" ? (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin">Admin panel</Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => void logout()}>Log out</DropdownMenuItem>
             </DropdownMenuContent>

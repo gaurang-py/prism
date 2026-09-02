@@ -19,6 +19,11 @@ enum Modality {
   video
 }
 
+enum UserRole {
+  user
+  admin
+}
+
 model User {
   id                      String    @id @default(cuid())
   email                   String    @unique
@@ -27,6 +32,7 @@ model User {
   bio                     String    @default("")
   avatarKey               String?
   credits                 Int       @default(100)
+  role                    UserRole  @default(user)
   nsfwEnabled             Boolean   @default(false)
   nsfwAgeConfirmed        Boolean   @default(false)
   passwordResetTokenHash  String?
@@ -36,6 +42,8 @@ model User {
   jobs                    Job[]
   sessions                Session[]
   purchases               CreditPurchase[]
+  creditAdjustments       CreditAdjustment[] @relation("CreditAdjustments")
+  adminCreditAdjustments  CreditAdjustment[] @relation("AdminCreditAdjustments")
 }
 
 model Session {
@@ -98,4 +106,19 @@ model CreditPurchase {
   createdAt        DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+model CreditAdjustment {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("CreditAdjustments", fields: [userId], references: [id], onDelete: Cascade)
+  adminId      String
+  admin        User     @relation("AdminCreditAdjustments", fields: [adminId], references: [id], onDelete: Cascade)
+  delta        Int
+  balanceAfter Int
+  reason       String   @default("")
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([adminId, createdAt])
 }

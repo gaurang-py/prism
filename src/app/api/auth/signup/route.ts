@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { publicError } from "@/lib/http-error";
+import { roleForNewUser } from "@/lib/admin";
 import { createSession, setSessionCookie } from "@/lib/session";
 import { serializeUser } from "@/lib/serialize-user";
 
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
         name,
         passwordHash: await bcrypt.hash(password, 12),
         credits: 100,
+        role: roleForNewUser(email),
       },
     });
 
