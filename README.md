@@ -163,10 +163,26 @@ Constraints the API enforces, verified against it and encoded in the mappers:
 - **Images** take all five studio aspect ratios unchanged, and `1K` / `2K` via `imageConfig.imageSize`.
   `responseModalities` is `["TEXT","IMAGE"]` because Nano Banana Pro reasons before it draws.
 - **Veo** only accepts `16:9` and `9:16`, so `4:3`/`1:1` fold to landscape and `3:4` to portrait.
-- **Veo** only accepts `durationSeconds` of 4, 6 or 8 — the studio's 5s maps to 6, its 10s to 8.
+- **Veo** only accepts `durationSeconds` of 4, 6 or 8, so the dock offers exactly those
+  for Veo models (see *Clip lengths* below). `veoDuration` still snaps 5/10 onto the
+  nearest legal value, but only for jobs queued before per-model durations existed.
 - **Veo** requires `sampleCount` of exactly 1, rejects `generateAudio`, and rejects
   `personGeneration: "allow_adult"` on the Developer API. Batches of >1 are issued as separate jobs.
 - Veo is long-running: the worker polls the operation every 10s and gives up after 10 minutes.
+
+## Clip lengths
+
+There is no single list of video durations. Each video model declares its own in
+`src/lib/models.ts`, and the dock, `POST /api/jobs` and the provider mappers all read
+that one list — so the studio never offers a length the provider will reject.
+
+| Model | Seconds |
+| --- | --- |
+| Veo 3.1 / Fast / Lite | 4, 6, 8 |
+| LTX 2 | 6, 10 |
+| Wan 2.6 / Seedance Fast / Kling 2.6 / Hunyuan Video | 5, 10 |
+
+Asking for anything else returns a readable `400` naming what the model does support.
 
 ## Fal model map
 
