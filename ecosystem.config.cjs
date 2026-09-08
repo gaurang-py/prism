@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "prism-web",
-      cwd: "/var/www/prism",
+      cwd: "/var/www/lillyput",
       script: "node_modules/.bin/next",
       args: "start --port 43123 --hostname 127.0.0.1",
       env: {
@@ -13,7 +13,7 @@ module.exports = {
     },
     {
       name: "prism-worker",
-      cwd: "/var/www/prism",
+      cwd: "/var/www/lillyput",
       script: "src/worker.ts",
       interpreter: "/usr/local/bin/bun",
       env: {

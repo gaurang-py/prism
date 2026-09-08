@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/var/www/prism"
+if [ -d /var/www/lillyput/.git ]; then
+  APP_DIR="/var/www/lillyput"
+elif [ -d /var/www/prism/.git ]; then
+  APP_DIR="/var/www/prism"
+else
+  APP_DIR="/var/www/lillyput"
+fi
+
 cd "$APP_DIR"
 
-echo "[deploy] pulling latest main..."
+echo "[deploy] pulling latest main in $APP_DIR..."
 if ! GIT_TERMINAL_PROMPT=0 git fetch origin main; then
   echo "[deploy] origin fetch failed; retrying with public HTTPS remote"
   git remote set-url origin https://github.com/gaurang-py/prism.git

@@ -21,79 +21,24 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           timeout: 2m
           command_timeout: 15m
-          script_stop: true
+          # false: drone-ssh joins lines with && when script_stop is true,
+          # which breaks multiline if/then scripts.
+          script_stop: false
           script: |
             set -euo pipefail
-            APP_DIR="/var/www/prism"
-            REPO="https://github.com/gaurang-py/prism.git"
-
+            export PATH="/usr/local/bin:/usr/bin:$PATH"
             echo "[deploy] user=$(whoami) host=$(hostname)"
-            echo "[deploy] /var/www:"
-            ls -la /var/www || true
-            echo "[deploy] existing deploy.sh / .env under /var/www:"
-            find /var/www -maxdepth 3 \( -name deploy.sh -o -name .env \) 2>/dev/null || true
-
-            if ! command -v git >/dev/null 2>&1; then
-              echo "[deploy] FATAL: git is not installed on the VPS" >&2
-              exit 1
-            fi
-
-            ensure_parent() {
-              if mkdir -p "$(dirname "$APP_DIR")" 2>/dev/null; then
-                return 0
-              fi
-              sudo mkdir -p "$(dirname "$APP_DIR")"
-              sudo chown "$(whoami):$(id -gn)" "$(dirname "$APP_DIR")"
-            }
-
-            clone_repo() {
-              local dest="$1"
-              echo "[deploy] cloning $REPO into $dest"
-              GIT_TERMINAL_PROMPT=0 git clone --branch main --single-branch "$REPO" "$dest"
-            }
-
-            if [ -f "$APP_DIR/deploy/deploy.sh" ]; then
-              echo "[deploy] checkout already has deploy.sh"
-            elif [ -d "$APP_DIR/.git" ]; then
-              echo "[deploy] git checkout present but deploy.sh missing; resetting to origin/main"
-              GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" fetch origin main || {
-                git -C "$APP_DIR" remote set-url origin "$REPO"
-                GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" fetch origin main
-              }
-              git -C "$APP_DIR" reset --hard origin/main
+            ls -la /var/www
+            if [ -d /var/www/lillyput/.git ] || [ -f /var/www/lillyput/deploy/deploy.sh ]; then
+              APP_DIR=/var/www/lillyput
+            elif [ -d /var/www/prism/.git ] || [ -f /var/www/prism/deploy/deploy.sh ]; then
+              APP_DIR=/var/www/prism
             else
-              echo "[deploy] bootstrapping missing checkout at $APP_DIR"
-              ensure_parent
-              if [ ! -e "$APP_DIR" ] || [ -z "$(ls -A "$APP_DIR" 2>/dev/null || true)" ]; then
-                if [ -e "$APP_DIR" ]; then
-                  rmdir "$APP_DIR" 2>/dev/null || true
-                fi
-                if ! clone_repo "$APP_DIR"; then
-                  sudo mkdir -p "$APP_DIR"
-                  sudo chown "$(whoami):$(id -gn)" "$APP_DIR"
-                  rmdir "$APP_DIR" 2>/dev/null || true
-                  clone_repo "$APP_DIR"
-                fi
-              else
-                echo "[deploy] $APP_DIR exists without .git; overlaying code and keeping .env"
-                TMP="$(mktemp -d /tmp/prism-clone.XXXXXX)"
-                clone_repo "$TMP/prism"
-                if [ -f "$APP_DIR/.env" ]; then
-                  cp -a "$APP_DIR/.env" "$TMP/prism.env.bak"
-                fi
-                cp -a "$TMP/prism/." "$APP_DIR/"
-                if [ -f "$TMP/prism.env.bak" ]; then
-                  mv "$TMP/prism.env.bak" "$APP_DIR/.env"
-                fi
-                rm -rf "$TMP"
-              fi
-            fi
-
-            if [ ! -f "$APP_DIR/deploy/deploy.sh" ]; then
-              echo "[deploy] FATAL: still missing $APP_DIR/deploy/deploy.sh" >&2
-              ls -la "$APP_DIR" || true
-              ls -la "$APP_DIR/deploy" || true
+              echo "[deploy] FATAL: no checkout at /var/www/lillyput or /var/www/prism"
               exit 1
             fi
-
+            echo "[deploy] using $APP_DIR"
+            GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" fetch origin main || git -C "$APP_DIR" remote set-url origin https://github.com/gaurang-py/prism.git
+            GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" fetch origin main
+            git -C "$APP_DIR" reset --hard origin/main
             bash "$APP_DIR/deploy/deploy.sh"

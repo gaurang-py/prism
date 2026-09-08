@@ -6,11 +6,12 @@ Characters and canvas boards belong to the signed-in user. Character identity im
 
 ## Hostinger / ops names left as Prism
 
-The product name is Lillyput. These production identifiers stay `prism` so the current Hostinger deploy, PM2 processes, and in-flight queue keep working:
+The product name is Lillyput. Most production identifiers stay `prism` so PM2, the queue, and cookies keep working. The Hostinger checkout itself was moved to `/var/www/lillyput` (the old `/var/www/prism` path is gone).
 
 | What | Value | Why it stays |
 | --- | --- | --- |
-| GitHub repo / VPS path | `gaurang-py/prism`, `/var/www/prism` | Actions SSH into that directory. If the checkout is missing, the workflow clones the public repo there, then runs `deploy/deploy.sh`. Production `.env` is kept if the directory already exists. |
+| GitHub repo | `gaurang-py/prism` | existing remotes and Actions |
+| VPS checkout | `/var/www/lillyput` | Gaurang moved the tree here; `deploy/deploy.sh` and PM2 `cwd` follow it |
 | PM2 apps | `prism-web`, `prism-worker` | `ecosystem.config.cjs` — renaming would drop the running processes |
 | npm package name | `prism` | lockfile / install identity |
 | Postgres docker db | user/db `prism` | local compose default |
