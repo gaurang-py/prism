@@ -1,5 +1,6 @@
 import { ProviderError } from "./providers/types";
 import type { GenerateRequest } from "./providers/types";
+import { referenceImageUrls } from "./references";
 import type { AspectRatio, OutputResolution, VideoDuration } from "./types";
 
 export { ProviderError };
@@ -39,7 +40,8 @@ function durationSeconds(duration: VideoDuration | null | undefined): number {
 
 function buildImageCall(req: GenerateRequest): FalCall {
   const imageSize = fluxImageSize(req.aspectRatio, req.resolution);
-  const frame = req.firstFrameUrl ?? undefined;
+  const frames = referenceImageUrls(req);
+  const frame = frames[0];
 
   switch (req.modelId) {
     case "flux-2-schnell":
@@ -50,7 +52,7 @@ function buildImageCall(req: GenerateRequest): FalCall {
           image_size: imageSize,
           num_images: 1,
           output_format: "png",
-          ...(frame ? { image_urls: [frame] } : {}),
+          ...(frames.length ? { image_urls: frames } : {}),
         },
       };
     case "flux-2-dev":
@@ -61,7 +63,7 @@ function buildImageCall(req: GenerateRequest): FalCall {
           image_size: imageSize,
           num_images: 1,
           output_format: "png",
-          ...(frame ? { image_urls: [frame] } : {}),
+          ...(frames.length ? { image_urls: frames } : {}),
         },
       };
     case "seedream-5":
@@ -73,7 +75,7 @@ function buildImageCall(req: GenerateRequest): FalCall {
           prompt: req.prompt,
           image_size: req.resolution === "2K" ? "2K" : "1K",
           aspect_ratio: req.aspectRatio,
-          ...(frame ? { image_urls: [frame] } : {}),
+          ...(frames.length ? { image_urls: frames } : {}),
         },
       };
     case "sdxl":
@@ -132,7 +134,8 @@ function buildVideoCall(req: GenerateRequest): FalCall {
   const duration = durationSeconds(req.duration);
   const aspect = videoAspect(req.aspectRatio);
   const resolution = req.resolution === "720p" ? "720p" : "1080p";
-  const frame = req.firstFrameUrl ?? undefined;
+  const frames = referenceImageUrls(req);
+  const frame = frames[0];
 
   switch (req.modelId) {
     case "wan-2.6":

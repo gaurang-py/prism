@@ -1,4 +1,27 @@
-# Prism
+# Lillyput
+
+AI image and video studio at **lillyput.app**. Logged-out visitors see a cinematic marketing landing. Signed-in users land in a Krea-style Home hub. Generate uses Higgsfield-like chrome with a lime dock. Jobs are persisted in **Postgres**, belong to the signed-in **User**, processed by a **pg-boss worker**, generated on **Google (Gemini + Veo)** or **Fal.ai** depending on the model, and stored in **Cloudflare R2** under `generations/` for 7 days.
+
+Characters and canvas boards belong to the signed-in user. Character identity images live under `characters/` so the 7-day generations lifecycle does **not** delete them.
+
+## Hostinger / ops names left as Prism
+
+The product name is Lillyput. These production identifiers stay `prism` so the current Hostinger deploy, PM2 processes, and in-flight queue keep working:
+
+| What | Value | Why it stays |
+| --- | --- | --- |
+| GitHub repo / VPS path | `gaurang-py/prism`, `/var/www/prism` | `deploy/deploy.sh` and Actions SSH into that directory |
+| PM2 apps | `prism-web`, `prism-worker` | `ecosystem.config.cjs` — renaming would drop the running processes |
+| npm package name | `prism` | lockfile / install identity |
+| Postgres docker db | user/db `prism` | local compose default |
+| pg-boss queue | `prism-generate` | in-flight jobs on the VPS |
+| Session cookie | `prism_session` | renaming would sign everyone out |
+| R2 bucket example | `prism-generations` | existing bucket name |
+| Actions concurrency group | `deploy-prism-vps` | workflow only |
+
+`bun run db:migrate` (`prisma migrate deploy`) still runs on every Hostinger deploy.
+
+## Routes
 
 AI image and video studio. Logged-out visitors see a cinematic marketing landing. Signed-in users land in a Krea-style Home hub. Generate uses Higgsfield-like chrome with a lime dock. Jobs are persisted in **Postgres**, belong to the signed-in **User**, processed by a **pg-boss worker**, generated on **Google (Gemini + Veo)** or **Fal.ai** depending on the model, and stored in **Cloudflare R2** under `generations/` for 7 days.
 
@@ -9,7 +32,9 @@ AI image and video studio. Logged-out visitors see a cinematic marketing landing
 | `/` | Logged out | Marketing landing (lime / `#080908`): sticky promo bar + nav, hero with studio mock + generate dock, showcase carousel, image→video lab, pain points, model picker, three steps, use-cases, compare, 18+ NSFW, Built in India, Free ₹0 / Creator credits pricing, FAQ, final CTA. |
 | `/` | Logged in | Redirects to `/home`. |
 | `/home` | Signed in | In-app Home hub: looping cheapest-video hero (LTX 2), hover-to-play video cards, Image / Video / NSFW filters, NSFW opt-in toggle. |
-| `/generate`, `/image`, `/video` | Signed in | Studio: Image \| Video tabs, empty board until jobs exist, bottom dock. No marketing hero. |
+| `/generate`, `/image`, `/video` | Signed in | Studio: Image \| Video tabs, empty board until jobs exist, bottom dock. Attach **multiple** reference images. Video (and image-to-video) can pick a saved **character**. |
+| `/characters` | Signed in | Create a character (name + one or more reference images), list/edit yours. |
+| `/canvas` | Signed in | Per-user canvas board: place refs, characters, and past generations; select cards and generate or open the studio with those refs attached. |
 | `/history` | Signed in | That user's jobs that have not expired. |
 | `/profile` | Signed in | Name, bio, avatar. |
 | `/credits` | Signed in | Stripe Checkout packs. |
@@ -79,7 +104,7 @@ Create an R2 API token with Object Read & Write on that bucket.
 
 Signup creates a `User` (name from the form, **100 welcome image credits**). Session cookie `prism_session` is httpOnly. Generate and `POST /api/jobs` require a session.
 
-Anonymous visitors on `/` can use the generate dock: Prism stores the prompt in `sessionStorage` and sends them to `/signup?next=/generate?…`. After signup they land in the studio with the prompt filled. Lime **Claim 100 Free Credits** / **Create My First Image** CTAs sign them up into `/home`.
+Anonymous visitors on `/` can use the generate dock: Lillyput stores the prompt in `sessionStorage` and sends them to `/signup?next=/generate?…`. After signup they land in the studio with the prompt filled. Lime **Claim 100 Free Credits** / **Create My First Image** CTAs sign them up into `/home`.
 
 Forgot password stores a hashed token + expiry on the user and shows `/reset-password?token=`. If `RESEND_API_KEY` and `SMTP_HOST` are both empty, the reset URL is **logged to the server console** so local dev still works. The token/DB/UI path is never skipped.
 
@@ -104,11 +129,25 @@ Two layers, both required for generated media:
 
 **Avatars** are stored at `avatars/{userId}.{ext}` so the `generations/` lifecycle rule does **not** delete them.
 
-Uploads (first frames) live under `generations/uploads/` and expire with generations.
+**Character identity refs** are stored at `characters/{userId}/{characterId}/…` so that same lifecycle rule does **not** delete them.
+
+Uploads (one-off generate refs) live under `generations/uploads/` and expire with generations.
+
+## Characters
+
+`POST /api/characters` (JSON `{ name }` or multipart `name` + `files`) creates a user-owned character. `POST /api/characters/:id/images` attaches more refs. Jobs may send `characterId`; the worker prepends that character's stored keys, then any extra `referenceKeys` from the generate request.
+
+## Multi-reference generate
+
+`POST /api/jobs` accepts `referenceKeys: string[]` (and still accepts legacy `firstFrameKey`). The primary key is stored on `Job.firstFrameKey` for older rows; the full list is `Job.referenceKeys`. Fal Flux / Seedream and Gemini image models receive every still. Video endpoints that only take a start frame (Kling, Wan, Veo, LTX, Seedance) use the primary still and keep the extras on the character/job.
+
+## Canvas
+
+`GET`/`PUT /api/board` persist one JSON board per user (`Board.state`). The `/canvas` UI lets you drag cards, pan the board, select nodes, and either enqueue a generate or open `/generate` with those refs attached.
 
 ## How a run works
 
-1. Sign in (or complete signup from the landing dock). Generate dock `POST /api/jobs` with prompt, modality, model, aspect, resolution, duration, count, optional `firstFrameKey`.
+1. Sign in (or complete signup from the landing dock). Generate dock `POST /api/jobs` with prompt, modality, model, aspect, resolution, duration, count, optional `referenceKeys` / `characterId`.
 2. API writes `Job` rows owned by the user (status `queued`), **debits `User.credits`**, and enqueues `prism-generate` on pg-boss.
 3. Worker picks the job, calls Fal, downloads bytes, `PUT`s to R2 at `generations/{jobId}.{ext}`, marks the job `done`.
 4. The board polls `GET /api/jobs` (scoped to that user) until `done` or `error`.

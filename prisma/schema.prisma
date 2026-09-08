@@ -44,6 +44,8 @@ model User {
   purchases               CreditPurchase[]
   creditAdjustments       CreditAdjustment[] @relation("CreditAdjustments")
   adminCreditAdjustments  CreditAdjustment[] @relation("AdminCreditAdjustments")
+  characters              Character[]
+  boards                  Board[]
 }
 
 model Session {
@@ -71,6 +73,9 @@ model Job {
   resolution    String?
   batchId       String?
   firstFrameKey String?
+  referenceKeys Json?
+  characterId   String?
+  character     Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
   assetKey      String?
   contentType   String?
   errorMessage  String?
@@ -87,6 +92,40 @@ model Job {
   @@index([status, createdAt])
   @@index([expiresAt])
   @@index([batchId])
+  @@index([characterId])
+}
+
+model Character {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  images    CharacterImage[]
+  jobs      Job[]
+
+  @@index([userId, createdAt])
+}
+
+model CharacterImage {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  key         String
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([characterId, sortOrder])
+}
+
+model Board {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state     Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StripeEvent {

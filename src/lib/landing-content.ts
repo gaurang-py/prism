@@ -244,7 +244,7 @@ export const COMPARE_PRISM = [
 export const FAQ = [
   {
     q: "What do I get when I join?",
-    a: "You receive 100 image-generation credits. No credit card is required, so you can explore Prism before buying anything.",
+    a: "You receive 100 image-generation credits. No credit card is required, so you can explore Lillyput before buying anything.",
   },
   {
     q: "Which models can I use?",
@@ -252,18 +252,18 @@ export const FAQ = [
   },
   {
     q: "Can I switch models with one account?",
-    a: "Yes. One login and one credit balance cover every image and video engine in Prism. Switch models without opening another tab or another bill.",
+    a: "Yes. One login and one credit balance cover every image and video engine in Lillyput. Switch models without opening another tab or another bill.",
   },
   {
-    q: "Does Prism work on a phone?",
-    a: "Yes. Prism is built phone-first so you can describe, choose an engine and generate from the device already in your hand.",
+    q: "Does Lillyput work on a phone?",
+    a: "Yes. Lillyput is built phone-first so you can describe, choose an engine and generate from the device already in your hand.",
   },
   {
     q: "How will paid credits work?",
     a: "Creator credit packs arrive at launch. Until then, start with 100 free welcome credits and buy more only when you need them — no subscription maze.",
   },
   {
-    q: "What is Prism’s adults-only mode?",
+    q: "What is Lillyput’s adults-only mode?",
     a: "Verified adults can opt in to broader NSFW image and video creation. It stays off by default, requires 18+ confirmation, and bans minors, non-consensual intimate imagery and explicit deepfakes of identifiable people.",
   },
 ] as const;

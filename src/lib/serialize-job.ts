@@ -1,4 +1,5 @@
 import type { Job as JobRow, JobStatus as DbStatus, Modality as DbModality } from "@prisma/client";
+import { mergeReferenceKeys } from "./references";
 import type { AspectRatio, Job, JobStatus, OutputResolution, VideoDuration } from "./types";
 import { getReadUrl, r2Configured } from "./r2";
 
@@ -29,7 +30,9 @@ async function readUrl(key: string | null | undefined): Promise<string> {
 
 export async function serializeJob(row: JobRow): Promise<Job> {
   const assetUrl = row.status === "done" ? await readUrl(row.assetKey) : "";
-  const firstFrameUrl = await readUrl(row.firstFrameKey);
+  const referenceKeys = mergeReferenceKeys(row.firstFrameKey ? [row.firstFrameKey] : [], row.referenceKeys);
+  const referenceUrls = await Promise.all(referenceKeys.map((key) => readUrl(key)));
+  const firstFrameUrl = referenceUrls[0] || "";
   const status = row.status as JobStatus;
   const modality = row.modality as DbModality;
 
@@ -51,9 +54,12 @@ export async function serializeJob(row: JobRow): Promise<Job> {
     videoUrl: modality === "video" && status === "done" ? assetUrl : undefined,
     posterUrl: modality === "video" ? firstFrameUrl || assetUrl : assetUrl,
     firstFrameUrl: firstFrameUrl || undefined,
+    referenceKeys: referenceKeys.length ? referenceKeys : undefined,
+    referenceUrls: referenceUrls.filter(Boolean).length ? referenceUrls.filter(Boolean) : undefined,
+    characterId: row.characterId ?? undefined,
     errorMessage: row.errorMessage ?? undefined,
     assetKey: row.assetKey ?? undefined,
-    firstFrameKey: row.firstFrameKey ?? undefined,
+    firstFrameKey: row.firstFrameKey ?? referenceKeys[0],
   };
 }
 

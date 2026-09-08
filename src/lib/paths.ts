@@ -36,6 +36,8 @@ export const PROTECTED_PAGE_PREFIXES = [
   "/video",
   "/history",
   "/library",
+  "/characters",
+  "/canvas",
   "/profile",
   "/credits",
   "/admin",

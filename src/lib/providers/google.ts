@@ -1,6 +1,7 @@
 import { GoogleGenAI, type GenerateVideosOperation } from "@google/genai";
 import { ProviderError, type GenerateRequest, type GeneratedMedia, type ProgressFn } from "./types";
 import type { AspectRatio, OutputResolution, VideoDuration } from "../types";
+import { referenceImageUrls } from "../references";
 
 /**
  * Catalog id -> Gemini API model id.
@@ -100,13 +101,20 @@ export interface GoogleImageRequest {
   };
 }
 
+function asFrames(
+  frame?: { data: string; mimeType: string } | Array<{ data: string; mimeType: string }> | null,
+): Array<{ data: string; mimeType: string }> {
+  if (!frame) return [];
+  return Array.isArray(frame) ? frame : [frame];
+}
+
 export function buildGoogleImageRequest(
   req: GenerateRequest,
-  frame?: { data: string; mimeType: string } | null,
+  frame?: { data: string; mimeType: string } | Array<{ data: string; mimeType: string }> | null,
 ): GoogleImageRequest {
   const parts: Array<Record<string, unknown>> = [];
-  if (frame) {
-    parts.push({ inlineData: { mimeType: frame.mimeType, data: frame.data } });
+  for (const item of asFrames(frame)) {
+    parts.push({ inlineData: { mimeType: item.mimeType, data: item.data } });
   }
   parts.push({ text: req.prompt });
 
@@ -138,15 +146,16 @@ export interface GoogleVideoRequest {
 
 export function buildGoogleVideoRequest(
   req: GenerateRequest,
-  frame?: { data: string; mimeType: string } | null,
+  frame?: { data: string; mimeType: string } | Array<{ data: string; mimeType: string }> | null,
 ): GoogleVideoRequest {
+  const primary = asFrames(frame)[0] ?? null;
   return {
     model: requireGoogleModelId(req.modelId),
     // `prompt`/`image` as top-level args are deprecated in @google/genai — the
     // SDK warns and will drop them. `source` is the supported shape.
     source: {
       prompt: req.prompt,
-      ...(frame ? { image: { imageBytes: frame.data, mimeType: frame.mimeType } } : {}),
+      ...(primary ? { image: { imageBytes: primary.data, mimeType: primary.mimeType } } : {}),
     },
     config: {
       // sampleCount must be exactly 1 on the Developer API.
@@ -224,8 +233,12 @@ async function fetchFrame(url: string): Promise<{ data: string; mimeType: string
 
 async function runImage(req: GenerateRequest, onProgress?: ProgressFn): Promise<GeneratedMedia> {
   const ai = client();
-  const frame = req.firstFrameUrl ? await fetchFrame(req.firstFrameUrl) : null;
-  const call = buildGoogleImageRequest(req, frame);
+  const urls = referenceImageUrls(req);
+  const frames: Array<{ data: string; mimeType: string }> = [];
+  for (const url of urls) {
+    frames.push(await fetchFrame(url));
+  }
+  const call = buildGoogleImageRequest(req, frames);
 
   await onProgress?.({ progress: 30 });
   const res = await ai.models.generateContent(call as never);
@@ -257,7 +270,8 @@ async function runImage(req: GenerateRequest, onProgress?: ProgressFn): Promise<
 
 async function runVideo(req: GenerateRequest, onProgress?: ProgressFn): Promise<GeneratedMedia> {
   const ai = client();
-  const frame = req.firstFrameUrl ? await fetchFrame(req.firstFrameUrl) : null;
+  const primaryUrl = referenceImageUrls(req)[0];
+  const frame = primaryUrl ? await fetchFrame(primaryUrl) : null;
   const call = buildGoogleVideoRequest(req, frame);
 
   let operation = (await ai.models.generateVideos(call as never)) as GenerateVideosOperation;

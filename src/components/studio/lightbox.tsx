@@ -122,16 +122,21 @@ export function ResultLightbox() {
                     <p className="text-sm text-muted-foreground">{job.negativePrompt}</p>
                   </div>
                 )}
-                {job.firstFrameUrl && (
+                {job.referenceUrls && job.referenceUrls.length > 0 && (
                   <div>
                     <p className="mb-1 text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
-                      First frame
+                      References
                     </p>
-                    <img
-                      src={job.firstFrameUrl}
-                      alt=""
-                      className="h-16 rounded-lg object-cover"
-                    />
+                    <div className="flex flex-wrap gap-2">
+                      {job.referenceUrls.map((url) => (
+                        <img
+                          key={url}
+                          src={url}
+                          alt=""
+                          className="h-16 rounded-lg object-cover"
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">

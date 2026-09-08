@@ -7,6 +7,7 @@ import { notExpired, serializeJobs } from "@/lib/serialize-job";
 import { publicError } from "@/lib/http-error";
 import { coerceVideoResolution, durationsFor, getModel, videoResolutionsFor, type Modality } from "@/lib/models";
 import { providerForModel, providerConfigured } from "@/lib/providers";
+import { mergeReferenceKeys } from "@/lib/references";
 import { requireUser } from "@/lib/require-user";
 import {
   ASPECT_RATIOS,
@@ -49,6 +50,8 @@ interface CreateBody {
   count?: unknown;
   firstFrameKey?: unknown;
   firstFrameUrl?: unknown;
+  referenceKeys?: unknown;
+  characterId?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -143,10 +146,27 @@ export async function POST(request: Request) {
     Math.max(1, Number.parseInt(String(body.count ?? 1), 10) || 1),
   );
 
-  const firstFrameKey =
-    typeof body.firstFrameKey === "string" && body.firstFrameKey.startsWith("generations/")
-      ? body.firstFrameKey
-      : null;
+  const bodyKeys = mergeReferenceKeys(
+    typeof body.firstFrameKey === "string" ? [body.firstFrameKey] : [],
+    Array.isArray(body.referenceKeys) ? body.referenceKeys : [],
+  );
+
+  let characterId: string | null =
+    typeof body.characterId === "string" && body.characterId.trim() ? body.characterId.trim() : null;
+  let characterKeys: string[] = [];
+  if (characterId) {
+    const character = await prisma.character.findFirst({
+      where: { id: characterId, userId: auth.user.id },
+      include: { images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    });
+    if (!character) {
+      return NextResponse.json({ error: "Unknown character." }, { status: 400 });
+    }
+    characterKeys = character.images.map((image) => image.key);
+  }
+
+  const referenceKeys = mergeReferenceKeys(characterKeys, bodyKeys);
+  const firstFrameKey = referenceKeys[0] ?? null;
 
   const cost = model.mockCredits * count;
   const expiresAt = new Date(Date.now() + JOB_TTL_MS);
@@ -175,6 +195,8 @@ export async function POST(request: Request) {
               resolution,
               batchId,
               firstFrameKey,
+              referenceKeys,
+              characterId,
               creditsSpent: model.mockCredits,
               progress: 4,
               expiresAt,

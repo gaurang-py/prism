@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prism",
+  title: "Lillyput",
   description:
-    "AI image and video studio. Fal.ai generation, stored on Cloudflare R2.",
+    "AI image and video studio. Generate on Google and Fal.ai, stored on Cloudflare R2.",
   icons: {
     icon: "/favicon.svg",
   },

@@ -296,7 +296,7 @@ function MarketingNav() {
       <Shell className="flex h-[64px] items-center justify-between gap-3">
         <a href="#top" className="flex shrink-0 items-center gap-2.5">
           <PrismMark className="size-[22px] text-[#C8FF00]" />
-          <span className="text-[17px] font-semibold tracking-tight">Prism</span>
+          <span className="text-[17px] font-semibold tracking-tight">Lillyput</span>
         </a>
 
         {/* Once the hero scrolls away the links give up their space to a prompt dock. */}
@@ -405,7 +405,7 @@ function Hero() {
             <span className="text-[#C8FF00]">Today.</span>
           </h1>
           <p className="mt-6 max-w-[440px] text-[16px] leading-relaxed text-[#F5F7F1]/65 sm:text-[17px]">
-            Stop comparing tools. Prism puts the best image and video models in one studio, in
+            Stop comparing tools. Lillyput puts the best image and video models in one studio, in
             plain language, with {WELCOME_CREDITS} free credits to make your first pieces today.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -415,7 +415,7 @@ function Hero() {
             </Link>
             <a href="#video" className={ghostBtn}>
               <Play className="size-4 fill-current" />
-              How creators use Prism
+              How creators use Lillyput
             </a>
           </div>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-[#F5F7F1]/55">
@@ -836,7 +836,7 @@ function PainPoints() {
         </h2>
         <p className="mt-4 max-w-xl text-[15px] text-[#F5F7F1]/55">
           Most people never publish their first AI piece because they get stuck choosing tools,
-          plans and models. Prism removes that step.
+          plans and models. Lillyput removes that step.
         </p>
         <div className="mt-10 grid gap-3 sm:grid-cols-2">
           {PAIN_POINTS.map((item) => (
@@ -1143,7 +1143,7 @@ function Compare() {
     <section className="py-20 sm:py-24">
       <Shell>
         <p className="text-[12px] font-semibold tracking-[0.18em] text-[#C8FF00] uppercase">
-          Why Prism, in one glance
+          Why Lillyput, in one glance
         </p>
         <h2
           className="mt-3 max-w-2xl text-[40px] leading-[1.05] font-[560] sm:text-[52px]"
@@ -1164,7 +1164,7 @@ function Compare() {
           </article>
           <article className="rounded-[22px] border border-[#C8FF00]/35 bg-[#C8FF00]/[0.07] p-6 shadow-[0_0_60px_-40px_rgba(200,255,0,0.55)]">
             <p className="text-[12px] font-semibold tracking-wide text-[#C8FF00] uppercase">
-              Prism · everything a new creator needs
+              Lillyput · everything a new creator needs
             </p>
             <ul className="mt-5 space-y-3 text-[14px] text-[#F5F7F1]/85">
               {COMPARE_PRISM.map((item) => (
@@ -1346,7 +1346,7 @@ function Pricing() {
           No subscription maze.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-[15px] text-[#F5F7F1]/55">
-          Try Prism before spending anything. Paid credit packs arrive at launch — founding
+          Try Lillyput before spending anything. Paid credit packs arrive at launch — founding
           creators lock in launch pricing.
         </p>
         <div className="mx-auto mt-12 grid max-w-[920px] gap-4 text-left md:grid-cols-2">
@@ -1479,7 +1479,7 @@ function Faq() {
             start creating.
           </h2>
           <p className="mt-4 text-[14px] text-[#F5F7F1]/55">
-            Prism is new. Here’s what is ready now—and what is still being finalized for launch.
+            Lillyput is new. Here’s what is ready now—and what is still being finalized for launch.
           </p>
           <div className="mt-7 rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-5">
             <p className="text-[15px] font-semibold">Still deciding?</p>
@@ -1594,7 +1594,7 @@ function SiteFooter() {
         <div>
           <a href="#top" className="flex items-center gap-2">
             <PrismMark className="size-5 text-[#C8FF00]" />
-            <b>Prism</b>
+            <b>Lillyput</b>
           </a>
           <p className="mt-3 text-[13px] text-[#F5F7F1]/45">
             Built in India for creators everywhere.
@@ -1624,12 +1624,12 @@ function SiteFooter() {
           <b className="text-[13px]">Company</b>
           <div className="mt-3 flex flex-col gap-2 text-[13px] text-[#F5F7F1]/50">
             <a href="#why" className="transition hover:text-white">
-              Why Prism
+              Why Lillyput
             </a>
             <a href="#freedom" className="transition hover:text-white">
               Responsible use
             </a>
-            <a href="mailto:hello@prism.studio" className="transition hover:text-white">
+            <a href="mailto:hello@lillyput.app" className="transition hover:text-white">
               Contact
             </a>
           </div>
@@ -1643,7 +1643,7 @@ function SiteFooter() {
         </div>
       </Shell>
       <Shell className="mt-10 flex flex-col gap-2 border-t border-white/[0.06] pt-6 text-[12px] text-[#F5F7F1]/35 sm:flex-row sm:items-center sm:justify-between">
-        <span>© 2026 Prism</span>
+        <span>© 2026 Lillyput</span>
         <p>
           Adults-only features require separate 18+ verification and remain subject to consent,
           privacy and applicable law.

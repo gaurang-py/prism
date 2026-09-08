@@ -3,6 +3,8 @@ export const JOB_TTL_DAYS = 7;
 export const JOB_TTL_MS = JOB_TTL_DAYS * 24 * 60 * 60 * 1000;
 export const R2_PREFIX = "generations/";
 export const AVATAR_PREFIX = "avatars/";
+/** Persistent identity refs. Not covered by the 7-day generations/ lifecycle. */
+export const CHARACTER_PREFIX = "characters/";
 export const SIGNED_URL_TTL_SECONDS = 60 * 60;
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 export const SESSION_COOKIE = "prism_session";

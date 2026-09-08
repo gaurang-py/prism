@@ -26,11 +26,30 @@ export const IMAGE_RESOLUTIONS: ImageResolution[] = ["1K", "2K"];
 export const VIDEO_RESOLUTIONS: VideoResolution[] = ["720p", "1080p"];
 export const MAX_VARIATIONS = 4;
 
+export type ReferenceKind = "style" | "character" | "ref";
+
 export interface FirstFrameRef {
   jobId: string;
   url: string;
   prompt: string;
   key?: string;
+  source?: "upload" | "job" | "character" | "canvas";
+  kind?: ReferenceKind;
+  characterId?: string;
+}
+
+export interface CharacterImage {
+  id: string;
+  key: string;
+  url: string;
+  sortOrder: number;
+}
+
+export interface Character {
+  id: string;
+  name: string;
+  createdAt: number;
+  images: CharacterImage[];
 }
 
 export interface Job {
@@ -52,6 +71,9 @@ export interface Job {
   videoUrl?: string;
   posterUrl?: string;
   firstFrameUrl?: string;
+  referenceKeys?: string[];
+  referenceUrls?: string[];
+  characterId?: string;
   errorMessage?: string;
   assetKey?: string;
   firstFrameKey?: string;

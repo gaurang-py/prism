@@ -4,7 +4,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { AVATAR_PREFIX, R2_PREFIX, SIGNED_URL_TTL_SECONDS } from "./constants";
+import { AVATAR_PREFIX, CHARACTER_PREFIX, R2_PREFIX, SIGNED_URL_TTL_SECONDS } from "./constants";
 
 export function r2Configured(): boolean {
   return Boolean(
@@ -56,6 +56,10 @@ export function objectKey(name: string): string {
 
 export function avatarObjectKey(userId: string, ext: string): string {
   return `${AVATAR_PREFIX}${userId}.${ext}`;
+}
+
+export function characterObjectKey(userId: string, characterId: string, name: string): string {
+  return `${CHARACTER_PREFIX}${userId}/${characterId}/${name.replace(/^\/+/, "")}`;
 }
 
 export async function putObject(key: string, body: Buffer, contentType: string): Promise<void> {

@@ -20,6 +20,8 @@ export interface GenerateRequest {
   resolution?: OutputResolution | null;
   /** Signed URL of an uploaded still, when the run is image-to-image / image-to-video. */
   firstFrameUrl?: string | null;
+  /** All identity/reference stills. Primary is first; extras used when the model allows. */
+  referenceUrls?: string[] | null;
 }
 
 /**

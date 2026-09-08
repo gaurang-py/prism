@@ -35,7 +35,7 @@ export async function POST(request: Request) {
             currency: "usd",
             unit_amount: pack.amountCents,
             product_data: {
-              name: `${pack.name} — ${pack.credits.toLocaleString("en-US")} Prism credits`,
+              name: `${pack.name} — ${pack.credits.toLocaleString("en-US")} Lillyput credits`,
               description: pack.blurb,
             },
           },

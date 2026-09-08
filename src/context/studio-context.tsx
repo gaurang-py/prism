@@ -23,6 +23,7 @@ import {
 } from "@/lib/models";
 import { generateContinuePath, saveGenerateDraft } from "@/lib/generate-draft";
 import { isAuthPath, isMarketingPath, loginUrl, signupUrl } from "@/lib/paths";
+import { MAX_REFERENCE_IMAGES } from "@/lib/references";
 import { useAuth } from "@/context/auth-context";
 import {
   IMAGE_RESOLUTIONS,
@@ -30,9 +31,11 @@ import {
   STARTING_CREDITS,
   VIDEO_RESOLUTIONS,
   type AspectRatio,
+  type Character,
   type FirstFrameRef,
   type Job,
   type OutputResolution,
+  type ReferenceKind,
   type VideoDuration,
 } from "@/lib/types";
 
@@ -59,10 +62,20 @@ interface StudioContextValue {
   setResolution: (resolution: OutputResolution) => void;
   variationCount: number;
   setVariationCount: (count: number) => void;
+  referenceFrames: FirstFrameRef[];
   firstFrame: FirstFrameRef | null;
   clearFirstFrame: () => void;
+  removeReference: (jobId: string) => void;
   attachAsVideoInput: (job: Job) => void;
-  attachFile: (file: File) => void;
+  attachFile: (file: File, kind?: ReferenceKind) => void;
+  attachFiles: (files: File[], kind?: ReferenceKind) => void;
+  attachReferences: (refs: FirstFrameRef[]) => void;
+  setExtraReferences: (refs: FirstFrameRef[]) => void;
+  characters: Character[];
+  selectedCharacterId: string | null;
+  selectedCharacter: Character | null;
+  selectCharacter: (id: string | null) => void;
+  refreshCharacters: () => Promise<void>;
   generate: (input: GenerateInput) => Promise<boolean>;
   selectedJobId: string | null;
   selectedJob: Job | null;
@@ -123,7 +136,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const duration = coerceDuration(selectedModelId, durationChoice);
   const [resolution, setResolution] = useState<OutputResolution>("1K");
   const [variationCount, setVariationCountState] = useState(1);
-  const [firstFrame, setFirstFrame] = useState<FirstFrameRef | null>(null);
+  const [referenceFrames, setReferenceFrames] = useState<FirstFrameRef[]>([]);
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [appliedRoute, setAppliedRoute] = useState("");
 
@@ -144,7 +159,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             : defaultResolution(routeModel.modality, routeModel.id, durationChoice),
         ),
       );
-      if (routeModel.modality === "image") setFirstFrame(null);
     } else if (routeMode) {
       setModalityState(routeMode);
       setSelectedModelId((current) => {
@@ -160,7 +174,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           current,
         );
       });
-      if (routeMode === "image") setFirstFrame(null);
     }
   }
 
@@ -251,9 +264,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         current,
       ),
     );
-    if (next === "image") {
-      setFirstFrame(null);
-    }
   }, [user?.nsfwEnabled]);
 
   const selectModel = useCallback((id: string) => {
@@ -264,16 +274,93 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setResolution((current) =>
       snapResolution(model.id, coerceDuration(model.id, durationChoice), current),
     );
-    if (model.modality === "image") {
-      setFirstFrame(null);
-    }
   }, []);
 
   const setVariationCount = useCallback((count: number) => {
     setVariationCountState(Math.min(MAX_VARIATIONS, Math.max(1, count)));
   }, []);
 
-  const clearFirstFrame = useCallback(() => setFirstFrame(null), []);
+  const firstFrame = referenceFrames[0] ?? null;
+
+  const clearFirstFrame = useCallback(() => {
+    setReferenceFrames([]);
+    setSelectedCharacterId(null);
+  }, []);
+
+  const removeReference = useCallback((jobId: string) => {
+    setReferenceFrames((current) => current.filter((frame) => frame.jobId !== jobId));
+  }, []);
+
+  const refreshCharacters = useCallback(async () => {
+    if (!user) {
+      setCharacters([]);
+      return;
+    }
+    try {
+      const response = await fetch("/api/characters", { cache: "no-store" });
+      const payload = (await response.json()) as { characters?: Character[]; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Could not load characters");
+      setCharacters(payload.characters ?? []);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void refreshCharacters();
+  }, [refreshCharacters]);
+
+  const selectCharacter = useCallback((id: string | null) => {
+    setSelectedCharacterId(id);
+  }, []);
+
+  useEffect(() => {
+    setReferenceFrames((current) => {
+      const extras = current.filter((frame) => frame.source !== "character");
+      if (!selectedCharacterId) {
+        return current.some((frame) => frame.source === "character") ? extras : current;
+      }
+      const character = characters.find((item) => item.id === selectedCharacterId);
+      if (!character) return current;
+      const characterFrames: FirstFrameRef[] = character.images.map((image) => ({
+        jobId: `character-${character.id}-${image.id}`,
+        url: image.url,
+        prompt: character.name,
+        key: image.key,
+        source: "character",
+        kind: "character",
+        characterId: character.id,
+      }));
+      return [...characterFrames, ...extras].slice(0, MAX_REFERENCE_IMAGES);
+    });
+  }, [characters, selectedCharacterId]);
+
+  const attachReferences = useCallback((refs: FirstFrameRef[]) => {
+    setReferenceFrames((current) => {
+      const next = [...current];
+      for (const ref of refs) {
+        if (next.length >= MAX_REFERENCE_IMAGES) break;
+        if (ref.key && next.some((frame) => frame.key === ref.key)) continue;
+        if (next.some((frame) => frame.jobId === ref.jobId)) continue;
+        next.push(ref);
+      }
+      return next;
+    });
+  }, []);
+
+  const setExtraReferences = useCallback((refs: FirstFrameRef[]) => {
+    setReferenceFrames((current) => {
+      const character = current.filter((frame) => frame.source === "character" || frame.kind === "character");
+      const next = [...character];
+      for (const ref of refs) {
+        if (next.length >= MAX_REFERENCE_IMAGES) break;
+        if (ref.key && next.some((frame) => frame.key === ref.key)) continue;
+        if (next.some((frame) => frame.jobId === ref.jobId)) continue;
+        next.push(ref);
+      }
+      return next;
+    });
+  }, []);
 
   const attachAsVideoInput = useCallback((job: Job) => {
     if (job.modality !== "image") return;
@@ -292,47 +379,65 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         (VIDEO_RESOLUTIONS as readonly string[]).includes(current) ? current : "720p",
       ),
     );
-    setFirstFrame({
-      jobId: job.id,
-      url: url || "",
-      prompt: job.prompt,
-      key: job.assetKey,
-    });
+    attachReferences([
+      {
+        jobId: job.id,
+        url: url || "",
+        prompt: job.prompt,
+        key: job.assetKey,
+        source: "job",
+        kind: "ref",
+      },
+    ]);
     setAspectRatio(job.aspectRatio);
     setSelectedJobId(null);
-    toast.success("Attached as first frame");
-  }, [user?.nsfwEnabled]);
+    toast.success("Attached as video input");
+  }, [attachReferences, duration, user?.nsfwEnabled]);
 
-  const attachFile = useCallback((file: File) => {
-    const preview = URL.createObjectURL(file);
-    const tempId = `upload-${Date.now()}`;
-    setFirstFrame({
-      jobId: tempId,
-      url: preview,
-      prompt: "",
-    });
-    toast.message("Uploading reference…");
-    void (async () => {
-      try {
-        const body = new FormData();
-        body.set("file", file);
-        const response = await fetch("/api/uploads", { method: "POST", body });
-        const payload = (await response.json()) as { key?: string; url?: string; error?: string };
-        if (!response.ok || !payload.key) {
-          throw new Error(payload.error || "Upload failed");
-        }
-        setFirstFrame((current) =>
-          current?.jobId === tempId
-            ? { jobId: tempId, url: payload.url || preview, prompt: "", key: payload.key }
-            : current,
-        );
-        toast.success("Reference attached");
-      } catch (error) {
-        setFirstFrame((current) => (current?.jobId === tempId ? null : current));
-        toast.error(error instanceof Error ? error.message : "Upload failed");
+  const attachFile = useCallback((file: File, kind: ReferenceKind = "ref") => {
+    setReferenceFrames((current) => {
+      if (current.length >= MAX_REFERENCE_IMAGES) {
+        toast.error(`You can attach up to ${MAX_REFERENCE_IMAGES} references.`);
+        return current;
       }
-    })();
+      const preview = URL.createObjectURL(file);
+      const tempId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      toast.message("Uploading reference…");
+      void (async () => {
+        try {
+          const body = new FormData();
+          body.set("file", file);
+          const response = await fetch("/api/uploads", { method: "POST", body });
+          const payload = (await response.json()) as { key?: string; url?: string; error?: string };
+          if (!response.ok || !payload.key) {
+            throw new Error(payload.error || "Upload failed");
+          }
+          setReferenceFrames((frames) =>
+            frames.map((frame) =>
+              frame.jobId === tempId
+                ? { ...frame, url: payload.url || preview, key: payload.key, source: "upload", kind }
+                : frame,
+            ),
+          );
+          toast.success("Reference attached");
+        } catch (error) {
+          setReferenceFrames((frames) => frames.filter((frame) => frame.jobId !== tempId));
+          toast.error(error instanceof Error ? error.message : "Upload failed");
+        }
+      })();
+      return [
+        ...current,
+        { jobId: tempId, url: preview, prompt: "", source: "upload" as const, kind },
+      ];
+    });
   }, []);
+
+  const attachFiles = useCallback(
+    (files: File[], kind: ReferenceKind = "ref") => {
+      for (const file of files) attachFile(file, kind);
+    },
+    [attachFile],
+  );
 
   const generate = useCallback(
     async (input: GenerateInput) => {
@@ -347,16 +452,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         toast.error("Turn on NSFW to use this model");
         return false;
       }
+      const draft = {
+        prompt,
+        modality,
+        modelId: model.id,
+        aspectRatio,
+        resolution,
+        duration,
+        variationCount,
+        characterId: selectedCharacterId,
+        references: referenceFrames,
+      };
       if (!user && !authLoading) {
-        const draft = {
-          prompt,
-          modality,
-          modelId: model.id,
-          aspectRatio,
-          resolution,
-          duration,
-          variationCount,
-        };
         saveGenerateDraft(draft);
         router.push(signupUrl(generateContinuePath(draft)));
         return false;
@@ -375,8 +482,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      if (firstFrame && !firstFrame.key) {
-        toast.error("Still uploading the reference image");
+      if (referenceFrames.some((frame) => !frame.key)) {
+        toast.error("Still uploading a reference image");
         return false;
       }
 
@@ -394,7 +501,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             resolution,
             duration: modality === "video" ? duration : undefined,
             count: variationCount,
-            firstFrameKey: firstFrame?.key,
+            firstFrameKey: referenceFrames[0]?.key,
+            referenceKeys: referenceFrames.map((frame) => frame.key).filter(Boolean),
+            characterId: selectedCharacterId,
           }),
         });
         const payload = (await response.json()) as {
@@ -403,15 +512,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           error?: string;
         };
         if (response.status === 401) {
-          saveGenerateDraft({
-            prompt,
-            modality,
-            modelId: model.id,
-            aspectRatio,
-            resolution,
-            duration,
-            variationCount,
-          });
+          saveGenerateDraft(draft);
           router.push(loginUrl(generateContinuePath({ prompt, modality, modelId: model.id })));
           return false;
         }
@@ -461,10 +562,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       authLoading,
       credits,
       duration,
-      firstFrame,
       modality,
+      referenceFrames,
       resolution,
       router,
+      selectedCharacterId,
       selectedModelId,
       setUser,
       user,
@@ -478,6 +580,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const selectedJob = useMemo(
     () => jobs.find((job) => job.id === selectedJobId) ?? null,
     [jobs, selectedJobId],
+  );
+  const selectedCharacter = useMemo(
+    () => characters.find((item) => item.id === selectedCharacterId) ?? null,
+    [characters, selectedCharacterId],
   );
 
   const activeCost = getModel(selectedModelId)?.mockCredits ?? 0;
@@ -504,10 +610,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setResolution,
       variationCount,
       setVariationCount,
+      referenceFrames,
       firstFrame,
       clearFirstFrame,
+      removeReference,
       attachAsVideoInput,
       attachFile,
+      attachFiles,
+      attachReferences,
+      setExtraReferences,
+      characters,
+      selectedCharacterId,
+      selectedCharacter,
+      selectCharacter,
+      refreshCharacters,
       generate,
       selectedJobId,
       selectedJob,
@@ -522,8 +638,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       aspectRatio,
       attachAsVideoInput,
       attachFile,
+      attachFiles,
+      attachReferences,
+      setExtraReferences,
       batchCost,
       canAfford,
+      characters,
       clearFirstFrame,
       closeJob,
       creditError,
@@ -535,8 +655,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       loading,
       modality,
       openJob,
+      referenceFrames,
+      refreshCharacters,
+      removeReference,
       resolution,
+      selectCharacter,
       selectModel,
+      selectedCharacter,
+      selectedCharacterId,
       selectedJob,
       selectedJobId,
       selectedModelId,

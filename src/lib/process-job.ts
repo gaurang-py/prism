@@ -14,6 +14,7 @@ import {
   objectKey,
   putObject,
 } from "./r2";
+import { mergeReferenceKeys } from "./references";
 import type { AspectRatio, OutputResolution, VideoDuration } from "./types";
 
 export async function processGeneration(jobId: string): Promise<void> {
@@ -41,18 +42,26 @@ export async function processGeneration(jobId: string): Promise<void> {
     data: { status: "generating", progress: Math.max(job.progress, 8), errorMessage: null },
   });
 
-  let firstFrameUrl: string | null = null;
-  if (job.firstFrameKey) {
+  const referenceKeys = mergeReferenceKeys(
+    job.firstFrameKey ? [job.firstFrameKey] : [],
+    job.referenceKeys,
+  );
+  const referenceUrls: string[] = [];
+  for (const key of referenceKeys) {
     try {
-      firstFrameUrl = await getReadUrl(job.firstFrameKey);
+      referenceUrls.push(await getReadUrl(key));
     } catch (error) {
-      await failJob(
-        jobId,
-        `Could not read the first-frame object from R2: ${error instanceof Error ? error.message : "unknown error"}`,
-      );
-      return;
+      if (referenceUrls.length === 0) {
+        await failJob(
+          jobId,
+          `Could not read the reference object from R2: ${error instanceof Error ? error.message : "unknown error"}`,
+        );
+        return;
+      }
+      console.warn(`[worker] skipping unreadable ref ${key}`, error);
     }
   }
+  const firstFrameUrl = referenceUrls[0] ?? null;
 
   try {
     const media = await runGeneration(
@@ -64,6 +73,7 @@ export async function processGeneration(jobId: string): Promise<void> {
         duration: job.duration as VideoDuration | null,
         resolution: job.resolution as OutputResolution | null,
         firstFrameUrl,
+        referenceUrls,
       },
       async ({ requestId, progress }) => {
         await prisma.job.updateMany({

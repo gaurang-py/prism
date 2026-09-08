@@ -92,7 +92,7 @@ test("image: TEXT is allowed alongside IMAGE so Nano Banana Pro can think", () =
   assert.deepEqual(buildGoogleImageRequest(req()).config.responseModalities, ["TEXT", "IMAGE"]);
 });
 
-test("image: a first frame is inlined ahead of the prompt", () => {
+  test("image: a first frame is inlined ahead of the prompt", () => {
   const plain = buildGoogleImageRequest(req());
   assert.equal(plain.contents[0].parts.length, 1);
   assert.equal(plain.contents[0].parts[0].text, "a red umbrella in the rain");
@@ -103,6 +103,28 @@ test("image: a first frame is inlined ahead of the prompt", () => {
     inlineData: { mimeType: "image/png", data: "QUJD" },
   });
   assert.equal(edited.contents[0].parts[1].text, "a red umbrella in the rain");
+});
+
+test("image: multiple reference frames are all inlined", () => {
+  const edited = buildGoogleImageRequest(req(), [
+    { data: "AAA", mimeType: "image/png" },
+    { data: "BBB", mimeType: "image/jpeg" },
+  ]);
+  assert.equal(edited.contents[0].parts.length, 3);
+  assert.deepEqual(edited.contents[0].parts[0], {
+    inlineData: { mimeType: "image/png", data: "AAA" },
+  });
+  assert.deepEqual(edited.contents[0].parts[1], {
+    inlineData: { mimeType: "image/jpeg", data: "BBB" },
+  });
+});
+
+test("veo: extra refs are ignored; only the primary frame is sent", () => {
+  const call = buildGoogleVideoRequest(req({ modelId: "veo-3.1-fast", modality: "video", duration: 6 }), [
+    { data: "AAA", mimeType: "image/png" },
+    { data: "BBB", mimeType: "image/jpeg" },
+  ]);
+  assert.deepEqual(call.source.image, { imageBytes: "AAA", mimeType: "image/png" });
 });
 
 test("image: model id resolves to the real Gemini endpoint", () => {

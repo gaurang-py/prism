@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { MAX_UPLOAD_BYTES } from "@/lib/constants";
 import { publicError } from "@/lib/http-error";
-import { extensionForContentType, getReadUrl, objectKey, putObject } from "@/lib/r2";
+import { getReadUrl, objectKey } from "@/lib/r2";
 import { requireUser } from "@/lib/require-user";
+import { assertImageFile, imageExtension, putImageFile } from "@/lib/upload-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
 
 export async function POST(request: Request) {
   const auth = await requireUser();
@@ -24,21 +22,14 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Attach an image file." }, { status: 400 });
   }
-  if (!ALLOWED.has(file.type)) {
-    return NextResponse.json(
-      { error: "First-frame uploads must be JPEG, PNG, WebP, or GIF." },
-      { status: 400 },
-    );
-  }
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: "Image is larger than 8 MB." }, { status: 400 });
+  const invalid = assertImageFile(file);
+  if (invalid) {
+    return NextResponse.json({ error: invalid }, { status: 400 });
   }
 
   try {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const ext = extensionForContentType(file.type, "png");
-    const key = objectKey(`uploads/${crypto.randomUUID()}.${ext}`);
-    await putObject(key, bytes, file.type || "image/png");
+    const key = objectKey(`uploads/${crypto.randomUUID()}.${imageExtension(file)}`);
+    await putImageFile(key, file);
     const url = await getReadUrl(key);
     return NextResponse.json({ key, url });
   } catch (error) {

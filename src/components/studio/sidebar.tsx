@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Clapperboard, History, Home, ImageIcon, Shield } from "lucide-react";
+import { Clapperboard, History, Home, ImageIcon, LayoutGrid, Shield, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +22,8 @@ const NAV = [
   { href: "/home", label: "Home", icon: Home, id: "home" },
   { href: "/generate?mode=image", label: "Image", icon: ImageIcon, id: "image" },
   { href: "/generate?mode=video", label: "Video", icon: Clapperboard, id: "video" },
+  { href: "/characters", label: "Characters", icon: UserRound, id: "characters" },
+  { href: "/canvas", label: "Canvas", icon: LayoutGrid, id: "canvas" },
   { href: "/history", label: "History", icon: History, id: "history" },
 ] as const;
 
@@ -46,6 +48,8 @@ export function Sidebar() {
   function isActive(id: string) {
     if (id === "home") return pathname === "/home";
     if (id === "history") return pathname === "/history" || pathname === "/library";
+    if (id === "characters") return pathname === "/characters";
+    if (id === "canvas") return pathname === "/canvas";
     if (id === "admin") return pathname.startsWith("/admin");
     if (id === "image") {
       return (
@@ -64,7 +68,7 @@ export function Sidebar() {
       <div className="px-4 pt-5 pb-4">
         <Link href="/home" className="flex items-center gap-2.5">
           <PrismMark className="size-6 text-lime" />
-          <span className="text-lg font-semibold tracking-tight">Prism</span>
+          <span className="text-lg font-semibold tracking-tight">Lillyput</span>
         </Link>
       </div>
 

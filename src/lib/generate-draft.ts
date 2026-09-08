@@ -11,6 +11,15 @@ export interface GenerateDraft {
   resolution: OutputResolution;
   duration: VideoDuration;
   variationCount: number;
+  characterId?: string | null;
+  references?: Array<{
+    jobId: string;
+    url: string;
+    prompt: string;
+    key?: string;
+    source?: "upload" | "job" | "character" | "canvas";
+    characterId?: string;
+  }>;
 }
 
 export function saveGenerateDraft(draft: GenerateDraft): void {
