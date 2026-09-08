@@ -10,7 +10,7 @@ The product name is Lillyput. These production identifiers stay `prism` so the c
 
 | What | Value | Why it stays |
 | --- | --- | --- |
-| GitHub repo / VPS path | `gaurang-py/prism`, `/var/www/prism` | `deploy/deploy.sh` and Actions SSH into that directory |
+| GitHub repo / VPS path | `gaurang-py/prism`, `/var/www/prism` | Actions SSH into that directory. If the checkout is missing, the workflow clones the public repo there, then runs `deploy/deploy.sh`. Production `.env` is kept if the directory already exists. |
 | PM2 apps | `prism-web`, `prism-worker` | `ecosystem.config.cjs` — renaming would drop the running processes |
 | npm package name | `prism` | lockfile / install identity |
 | Postgres docker db | user/db `prism` | local compose default |

@@ -5,7 +5,11 @@ APP_DIR="/var/www/prism"
 cd "$APP_DIR"
 
 echo "[deploy] pulling latest main..."
-git fetch origin main
+if ! GIT_TERMINAL_PROMPT=0 git fetch origin main; then
+  echo "[deploy] origin fetch failed; retrying with public HTTPS remote"
+  git remote set-url origin https://github.com/gaurang-py/prism.git
+  GIT_TERMINAL_PROMPT=0 git fetch origin main
+fi
 git reset --hard origin/main
 
 echo "[deploy] installing dependencies..."
